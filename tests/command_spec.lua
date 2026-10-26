@@ -49,12 +49,15 @@ end)
 T.case('complete: the subcommands only, and only in the first place', function()
   T.eq(
     command.complete('', 'NoteRetrieval '),
-    { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
+    { 'model', 'probe', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
   )
   T.eq(command.complete('re', 'NoteRetrieval re'), { 'reindex', 'related', 'reset' })
   T.eq(command.complete('st', 'NoteRetrieval st'), { 'status', 'stop' })
   T.eq(command.complete('x', 'NoteRetrieval search x'), {})
   T.eq(command.complete('re', 'NoteRetrieval search re'), {})
+  T.eq(command.complete('', 'NoteRetrieval probe '), { '--json' })
+  T.eq(command.complete('--j', 'NoteRetrieval probe 5 --j'), { '--json' })
+  T.eq(command.complete('x', 'NoteRetrieval probe x'), {})
 end)
 
 T.case('an unknown subcommand and none at all are said in words', function()
@@ -63,7 +66,7 @@ T.case('an unknown subcommand and none at all are said in words', function()
     run('')
     T.ok(seen.notes[1]:find('unknown subcommand "bogus"', 1, true), seen.notes[1])
     T.ok(
-      seen.notes[1]:find('model, reindex, related, reset, search, status, stop, update', 1, true),
+      seen.notes[1]:find('model, probe, reindex, related, reset, search, status, stop, update', 1, true),
       seen.notes[1]
     )
     T.ok(seen.notes[2]:find('a subcommand is needed', 1, true), seen.notes[2])

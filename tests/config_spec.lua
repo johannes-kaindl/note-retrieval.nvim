@@ -17,6 +17,7 @@ local DEFAULTS = {
   hide_linked = true,
   link_format = 'wiki',
   index_on_save = true,
+  probe_auto = true,
   timeout_ms = 30000,
 }
 
@@ -59,6 +60,7 @@ local CASES = {
     why = 'must be "wiki" or "markdown"',
   },
   index_on_save = { good = { true, false }, bad = { 'no', 0 }, why = 'must be true or false' },
+  probe_auto = { good = { true, false }, bad = { 'no', 0 }, why = 'must be true or false' },
   timeout_ms = {
     good = { 1, 90000, 2147483647 },
     bad = { 0, -1, 1.5, '5', math.huge, 1e300, 2147483648 },

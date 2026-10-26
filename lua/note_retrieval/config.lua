@@ -17,6 +17,7 @@ local M = {}
 ---@field hide_linked boolean leave out notes the current note already links to
 ---@field link_format 'wiki'|'markdown' how an inserted link is written
 ---@field index_on_save boolean update the own index when a note is saved
+---@field probe_auto boolean run the self-find probe on a few notes after a full reindex of the own index
 ---@field timeout_ms integer how long one embedding request may take
 M.DEFAULTS = {
   roots = nil,
@@ -29,6 +30,7 @@ M.DEFAULTS = {
   hide_linked = true,
   link_format = 'wiki',
   index_on_save = true,
+  probe_auto = true,
   timeout_ms = 30000,
 }
 
@@ -113,6 +115,7 @@ local CHECKS = {
     end
   end,
   index_on_save = boolean,
+  probe_auto = boolean,
   timeout_ms = whole,
 }
 

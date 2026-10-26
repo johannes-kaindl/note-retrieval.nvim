@@ -1,5 +1,5 @@
 -- domain: note_retrieval
--- :NoteRetrieval {related|search|status|model|reindex|update|stop|reset}. Each subcommand is a function here;
+-- :NoteRetrieval {related|search|status|model|reindex|update|stop|probe|reset}. Each subcommand is a function here;
 -- the <Plug> mappings of plugin/note_retrieval.lua call the same ones.
 local config = require('note_retrieval.config')
 local messages = require('note_retrieval.messages')
@@ -7,7 +7,7 @@ local roots = require('note_retrieval.roots')
 
 local M = {}
 
-M.SUBCOMMANDS = { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
+M.SUBCOMMANDS = { 'model', 'probe', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
 
 local reported -- the option problems last shown, so a run does not repeat them every time
 
@@ -194,6 +194,11 @@ function M.reindex()
     )
     ix:reindex(function(report, rerr)
       report_run(root, report, rerr)
+      -- A finished run that wrote its result: a few notes searched with their own text, as a quick
+      -- check that the new index finds what it holds (off with the option `probe_auto`).
+      if report and not rerr and not report.cancelled and cfg.probe_auto then
+        require('note_retrieval.probe').auto(root)
+      end
     end)
   end)
 end
@@ -418,6 +423,64 @@ function M.model()
   end)
 end
 
+--- :NoteRetrieval probe [n] [--json] — search with the own text of up to `n` (default 40) notes of
+--- the index and count how many find themselves at rank 0; the misses are listed. `--json` prints
+--- one JSON line instead. Reads only, so it works on the index of the Obsidian plugin too.
+---@param opts? { n?: integer, json?: boolean }
+function M.probe(opts)
+  opts = opts or {}
+  local cfg = options()
+  local root, why = require('note_retrieval.status').current_root(cfg)
+  if not root then
+    return messages.notify({ kind = 'no-index', detail = why })
+  end
+  local mode = roots.mode(root, cfg)
+  local probe = require('note_retrieval.probe')
+  if not opts.json then
+    vim.notify(
+      ('note-retrieval: probing up to %d notes of %s with their own text, one query after another'):format(
+        opts.n or probe.N,
+        root
+      ),
+      vim.log.levels.INFO
+    )
+  end
+  probe.run(root, { n = opts.n }, function(result, err, partial)
+    if not result then
+      local done = partial and partial.n or 0
+      vim.notify(
+        ('%s (after %d notes)'):format(messages.text(err, { mode = mode }), done),
+        vim.log.levels.ERROR
+      )
+      return
+    end
+    if opts.json then
+      return vim.notify(probe.json(result), vim.log.levels.INFO)
+    end
+    vim.notify(
+      table.concat(probe.lines(result), '\n'),
+      (#result.failures > 0 or result.n == 0) and vim.log.levels.WARN or vim.log.levels.INFO
+    )
+  end)
+end
+
+-- The arguments after `probe`: an optional whole number and the flag `--json`, in any order.
+local function probe_args(fargs)
+  local opts = {}
+  for i = 2, #fargs do
+    local a = fargs[i]
+    local n = tonumber(a)
+    if a == '--json' then
+      opts.json = true
+    elseif n and n >= 1 and n == math.floor(n) and not a:find('[^%d]') then
+      opts.n = n
+    else
+      return nil, ('probe takes a number of notes and --json, not %q'):format(a)
+    end
+  end
+  return opts
+end
+
 --- :NoteRetrieval — o as nvim_create_user_command passes it.
 function M.run(o)
   local sub = o.fargs[1]
@@ -425,6 +488,12 @@ function M.run(o)
     -- The query is taken from `args` as typed: `fargs` would split it at every blank, and joining it
     -- again would collapse the blanks and lose a backslash.
     return M.search((o.args or ''):match('^%s*%S+%s?(.*)$'))
+  elseif sub == 'probe' then
+    local opts, bad = probe_args(o.fargs)
+    if not opts then
+      return vim.notify('note-retrieval: ' .. bad, vim.log.levels.ERROR)
+    end
+    return M.probe(opts)
   elseif sub and vim.tbl_contains(M.SUBCOMMANDS, sub) then
     return M[sub]()
   end
@@ -436,9 +505,13 @@ function M.run(o)
 end
 
 function M.complete(arglead, cmdline)
-  -- Only the subcommand completes: after it come free words (the query) or nothing.
+  -- Only the subcommand completes: after it come free words (the query) or nothing; `probe` takes a flag.
   local before = (cmdline or ''):sub(1, #(cmdline or '') - #arglead)
-  if #vim.split(vim.trim(before), '%s+') > 1 then
+  local words = vim.split(vim.trim(before), '%s+')
+  if #words > 1 then
+    if words[2] == 'probe' and ('--json'):find(arglead, 1, true) == 1 then
+      return { '--json' }
+    end
     return {}
   end
   return vim.tbl_filter(function(c)

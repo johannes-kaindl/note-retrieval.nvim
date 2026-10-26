@@ -17,6 +17,9 @@ COMMANDS                                                *:NoteRetrieval*
 :NoteRetrieval model
 	Choose the embedding model of the first server that answers; the choice is remembered per server. An index of the Obsidian plugin decides the model of a search by itself.
 
+:NoteRetrieval probe [n] [--json]
+	Check that the index finds what it holds: up to `n` notes (default 40) with a text of 201 to 800 characters are searched with the first 300 characters of their own text, one query after another, and each should come back first. Shows `x/n on rank 0` and the misses; `--json` prints one JSON line (`n`, `hits`, `rate`, `failures`, `seed`, `model`). It only reads, so it works on the index of the Obsidian plugin too.
+
 :NoteRetrieval reset
 	Forget the index and the vault settings held in memory; the next command reads them again, for example after editing `data.json` of the Obsidian plugin.
 
@@ -76,6 +79,9 @@ Set them in `vim.g.note_retrieval` or pass them to `require('note_retrieval').se
 
 *note-retrieval-option-min_similarity*
   number from -1 to 1, default 0.3. Cosine similarity below which a note is not related.
+
+*note-retrieval-option-probe_auto*
+  boolean, default true. After a full reindex of the plugin's own index, run `:NoteRetrieval probe` on 8 notes and show one line with the result.
 
 *note-retrieval-option-roots*
   list of strings, default nil. Directories holding the notes.

@@ -8,6 +8,8 @@ local M = {}
 
 ---@class note_retrieval.Config
 ---@field roots? string[] directories holding the notes (nil: the index decides, else the working directory)
+---@field index_dir? string folder inside a root that holds index.bin (nil: the own index lives under stdpath('data'))
+---@field exclude? string[] path prefixes left out of the notes of the own index (nil: none)
 ---@field endpoints? table[] embedding servers in priority order (nil: Ollama, then LM Studio)
 ---@field embedding_model? string model that embeds notes and queries (nil: chosen per server)
 ---@field k integer how many related notes to show
@@ -18,6 +20,8 @@ local M = {}
 ---@field timeout_ms integer how long one embedding request may take
 M.DEFAULTS = {
   roots = nil,
+  index_dir = nil,
+  exclude = nil,
   endpoints = nil,
   embedding_model = nil,
   k = 20,
@@ -43,6 +47,28 @@ local CHECKS = {
     for i, root in ipairs(v) do
       if type(root) ~= 'string' or vim.trim(root) == '' then
         return ('entry %d must be a directory path'):format(i)
+      end
+    end
+  end,
+  index_dir = function(v)
+    local why = 'must be a folder inside the root, such as "_index"'
+    if type(v) ~= 'string' or v:gsub('/+$', '') == '' or v:find('^[/\\]') or v:find('^%a:') then
+      return why
+    end
+    for part in v:gmatch('[^/\\]+') do
+      if part == '..' then
+        return why
+      end
+    end
+  end,
+  exclude = function(v)
+    local why = 'must be a list of non-empty path prefixes such as { "Templates/" }'
+    if type(v) ~= 'table' or (next(v) ~= nil and not vim.islist(v)) then
+      return why
+    end
+    for _, prefix in ipairs(v) do
+      if type(prefix) ~= 'string' or prefix == '' then
+        return why
       end
     end
   end,

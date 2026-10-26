@@ -27,6 +27,16 @@ local CASES = {
     bad = { { {}, { '' }, { 5 }, '/notes', false } },
     why = 'must be a non-empty list of directory paths',
   },
+  index_dir = {
+    good = { '_index', 'a/b', '.notes-index' },
+    bad = { '', '/abs', 'C:/x', '../out', 'a/../../b', 5, false },
+    why = 'must be a folder inside the root, such as "_index"',
+  },
+  exclude = {
+    good = { {}, { 'Templates/' }, { 'Templates/', 'Archive/' } },
+    bad = { { 'Templates/', '' }, { 5 }, 'Templates/', false, { a = 'b' } },
+    why = 'must be a list of non-empty path prefixes such as { "Templates/" }',
+  },
   embedding_model = {
     good = { 'nomic-embed-text' },
     bad = { '', '  ', 5, false },

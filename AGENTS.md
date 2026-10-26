@@ -13,6 +13,7 @@
 | Path | What |
 |---|---|
 | `lua/note_retrieval/config.lua`, `init.lua` | options from `vim.g.note_retrieval` and `setup()`, every problem at once; invalid `endpoints` stop a run (`endpoints_error`); `resolve()` returns `cfg, problems` |
+| `lua/note_retrieval/roots.lua` | the vault root (option `roots`, else the nearest `.obsidian/` or `.zk/`), the mode (`obsidian` reads the index of the Obsidian plugin, `eigen` keeps its own), the index path and the set of note paths; never writes to anything Obsidian owns |
 | `lua/note_retrieval/kit/` | vendored from `nvim-kit` (`VENDOR.json`) — never edit |
 | `tests/` | specs for the kit's headless runner (`tests/run.lua`) |
 | `doc/note-retrieval.txt` | the manual, `:help note-retrieval` — commands, mappings and options live only here |

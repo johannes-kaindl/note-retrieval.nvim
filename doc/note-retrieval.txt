@@ -16,6 +16,12 @@ Set them in `vim.g.note_retrieval` or pass them to `require('note_retrieval').se
 *note-retrieval-option-hide_linked*
   boolean, default true. Leave out notes the current note already links to.
 
+*note-retrieval-option-exclude*
+  list of strings, default nil (none). Path prefixes, relative to the root and case-sensitive, left out of the notes of the plugin's own index, for example `{ 'Templates/' }`; an Obsidian index brings its own list.
+
+*note-retrieval-option-index_dir*
+  string, default nil (under `stdpath('data')`). Folder inside the root that holds the plugin's own `index.bin`; an index of the Vault Retrieval plugin found there is only read.
+
 *note-retrieval-option-index_on_save*
   boolean, default true. Update the plugin's own index when a note is saved.
 

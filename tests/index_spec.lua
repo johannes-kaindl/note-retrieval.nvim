@@ -215,6 +215,50 @@ T.case('current: a vanished file keeps the old index; no index at all is nil and
   end)
 end)
 
+-- A container whose header has a valid checksum but lacks `key` (vectors.parse raises on it).
+local function without(key)
+  local manifest = {
+    vault = '',
+    embedding_model = 'test-model',
+    source_dim = DIM,
+    index_dim = DIM,
+    granularity = 'note',
+    aggregation = 'mean',
+    quant = 'int8',
+    scale = 127,
+    count = #PATHS,
+    source_commit = '',
+    built_at = BUILT_AT,
+  }
+  manifest[key] = nil
+  return vrix.encode(manifest, PATHS, matrix(ROWS))
+end
+
+T.case('load and current: a header without scale or index_dim is a reason, not a raise', function()
+  for _, key in ipairs({ 'scale', 'index_dim' }) do
+    with_vault(without(key), nil, function(root)
+      local none, why = index.load(root, {})
+      T.eq(none, nil)
+      T.ok(why:find('being written or is damaged', 1, true), why)
+    end)
+  end
+  with_vault(GOOD, nil, function(root)
+    local first = assert(index.current(root, {}))
+    put_index(root, without('scale'))
+    local kept, warning = index.current(root, {})
+    T.eq(kept, first) -- the old index stays
+    T.ok(warning and warning:find('using the index loaded earlier', 1, true), tostring(warning))
+  end)
+end)
+
+T.case('stale_mark: the root is required, there is no last-served fallback', function()
+  with_vault(container({ 'n.md' }, { ROWS[1] }), { ['n.md'] = BUILT + 5000 }, function(root)
+    index.current(root, {})
+    T.eq(index.stale_mark('n.md', root), 'maybe')
+    T.ok(not pcall(index.stale_mark, 'n.md'), 'a call without root must raise')
+  end)
+end)
+
 local function marks(stamp, file_mtime, file_size)
   local out
   with_vault(container({ 'n.md' }, { ROWS[1] }, { stamp }), { ['n.md'] = file_mtime }, function(root)
@@ -222,7 +266,7 @@ local function marks(stamp, file_mtime, file_size)
       put(root .. '/n.md', ('x'):rep(file_size), file_mtime)
     end
     index.current(root, {})
-    out = index.stale_mark('n.md')
+    out = index.stale_mark('n.md', root)
   end)
   return out
 end
@@ -252,11 +296,11 @@ T.case('stale_mark: no row, no file, no index in memory, no stamps at all', func
     container({ 'n.md', 'gone.md' }, { ROWS[1], ROWS[2] }),
     { ['n.md'] = BUILT + 5000 },
     function(root)
-      T.eq(index.stale_mark('n.md'), nil) -- nothing loaded yet
+      T.eq(index.stale_mark('n.md', root), nil) -- nothing loaded yet
       index.current(root, {})
-      T.eq(index.stale_mark('other.md'), nil) -- not in the index
-      T.eq(index.stale_mark('gone.md'), nil) -- in the index, no file
-      T.eq(index.stale_mark('n.md'), 'maybe') -- an index without stamps: every row is unstamped
+      T.eq(index.stale_mark('other.md', root), nil) -- not in the index
+      T.eq(index.stale_mark('gone.md', root), nil) -- in the index, no file
+      T.eq(index.stale_mark('n.md', root), 'maybe') -- an index without stamps: every row is unstamped
       T.eq(index.stale_mark('n.md', root), 'maybe') -- the root can be given
       T.eq(index.stale_mark('n.md', root .. '/elsewhere'), nil)
     end
@@ -268,9 +312,9 @@ T.case(
   function()
     with_vault(container({ 'n.md' }, { ROWS[1] }, { { 0, 0 } }), { ['n.md'] = BUILT - 5000 }, function(root)
       local loaded = index.current(root, {})
-      T.eq(index.stale_mark('n.md'), nil)
+      T.eq(index.stale_mark('n.md', root), nil)
       put(root .. '/n.md', 'edited', BUILT + 9000)
-      T.eq(index.stale_mark('n.md'), 'maybe')
+      T.eq(index.stale_mark('n.md', root), 'maybe')
       T.eq(loaded.stamps, { { 0, 0 } })
     end)
   end
@@ -288,19 +332,19 @@ T.case(
         index.load(root, {})
         local loaded = index.current(root, {})
         for _, p in ipairs(PATHS) do
-          index.stale_mark(p)
+          index.stale_mark(p, root)
         end
         vectors.related(loaded.index, 'a.md', { k = 5, min_sim = 0 })
         put(root .. '/a.md', 'newer', BUILT + 9000)
         index.current(root, {})
-        index.stale_mark('a.md')
+        index.stale_mark('a.md', root)
         T.eq(sha(file), before)
         -- a torn file goes through the same paths: the reload fails, nothing is repaired or replaced
         put_index(root, GOOD:sub(1, 33))
         local torn = sha(file)
         index.current(root, {})
         index.current(root, {})
-        index.stale_mark('a.md')
+        index.stale_mark('a.md', root)
         T.eq(sha(file), torn)
       end
     )
@@ -317,8 +361,8 @@ T.case('the sha256 of an untouched index file does not change over a long run of
       for _ = 1, 5 do
         index.load(root, {})
         local loaded = index.current(root, {})
-        index.stale_mark('a.md')
-        index.stale_mark('b.md')
+        index.stale_mark('a.md', root)
+        index.stale_mark('b.md', root)
         vectors.related(loaded.index, 'a.md', { k = 5, min_sim = 0 })
       end
       T.eq(sha(file), before)

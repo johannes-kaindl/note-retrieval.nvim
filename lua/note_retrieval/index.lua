@@ -45,7 +45,6 @@ end
 -- The loaded index by root: { path, mode, loaded }. The path is resolved once, so an index file
 -- that vanishes for a moment does not switch the root to the own index.
 local state = {}
-local last_root
 
 local function same_stat(a, b)
   return a ~= nil
@@ -116,7 +115,12 @@ function M.load(root, cfg)
   if not decoded then
     return nil, REASONS[reason] or ('the index cannot be read (%s)'):format(tostring(reason))
   end
-  local index, why = vectors.parse(decoded.manifest, decoded.paths, decoded.matrix)
+  -- `parse` raises on a header with a valid checksum but without `scale` or `index_dim`; that is a
+  -- file this plugin cannot read, not a bug, so it is answered like any other unreadable index.
+  local parsed, index, why = pcall(vectors.parse, decoded.manifest, decoded.paths, decoded.matrix)
+  if not parsed then
+    index, why = nil, 'header'
+  end
   if not index then
     return nil, REASONS[why] or ('the index cannot be read (%s)'):format(tostring(why))
   end
@@ -144,7 +148,6 @@ function M.current(root, cfg)
   if not entry then
     return nil, key
   end
-  last_root = key
   local old = entry.loaded
   local stat = uv.fs_stat(entry.path)
   if old and same_stat(old.stat, stat) then
@@ -179,23 +182,24 @@ function M.reset(root)
   else
     state = {}
   end
-  last_root = nil
 end
 
 --- Whether the note `row_path` may be newer than its vector, from what is in memory (no reload,
 --- nothing is ever written or re-stamped): `'changed'` when the row has a real stamp and the
 --- file's `{ mtime, size }` differ from it; `'maybe'` when the row carries the stamp `{ 0, 0 }`
 --- (nobody stamped it) and the file is newer than the index's `built_at`; otherwise `nil` (also
---- for a note without a row or a file, and when there is no index in memory). `root` defaults to
---- the one `current` served last.
+--- for a note without a row or a file, and when there is no index in memory). `root` is required:
+--- the vault whose index `current` holds.
 function M.stale_mark(row_path, root)
-  local entry = state[root and vim.fs.normalize(root) or last_root]
+  assert(type(root) == 'string' and root ~= '', 'index.stale_mark needs the root')
+  root = vim.fs.normalize(root)
+  local entry = state[root]
   local loaded = entry and entry.loaded
   local row = loaded and loaded.index.rows[row_path]
   if not row then
     return nil
   end
-  local file = uv.fs_stat((root and vim.fs.normalize(root) or last_root) .. '/' .. row_path)
+  local file = uv.fs_stat(root .. '/' .. row_path)
   if not file then
     return nil
   end

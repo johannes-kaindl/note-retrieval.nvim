@@ -173,3 +173,19 @@ T.case('health: the state file is not created by a check', function()
     T.eq(vim.uv.fs_stat(path), nil)
   end)
 end)
+
+T.case(
+  'health: run as :checkhealth, from the page it opens, the vault is that of the note you came from',
+  function()
+    local srv = V.server({ V.MODEL })
+    V.with_vault(function(root)
+      vim.g.note_retrieval = { endpoints = V.endpoint(srv.url) }
+      open_note(root)
+      vim.cmd('silent checkhealth note_retrieval')
+      local page = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+      has(page, 'notes folder: ' .. root, 'index: ' .. root .. '/_vaultrag/index.bin (3 notes')
+      T.ok(not page:find('no notes folder found', 1, true), page)
+    end)
+    srv.close()
+  end
+)

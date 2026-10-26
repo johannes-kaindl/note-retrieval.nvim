@@ -311,3 +311,28 @@ T.case('option problems are shown once, not on every command', function()
     end)
   end)
 end)
+
+T.case('API: related and search take the vault of the current note, not of the working directory', function()
+  local api = require('note_retrieval')
+  local srv = V.server({ V.MODEL }, { 1, 0, 0, 0 })
+  V.with_vault(function(root)
+    vim.g.note_retrieval = { endpoints = V.endpoint(srv.url), min_similarity = 0 }
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/a.md'))
+    vim.cmd.cd('/')
+    local near = assert(api.related('a.md', { k = 1 }))
+    T.eq(near[1].path, 'b.md')
+    local got
+    api.search('anything', { k = 2 }, function(...)
+      got = { ... }
+    end)
+    T.ok(
+      vim.wait(5000, function()
+        return got ~= nil
+      end, 5),
+      'no answer'
+    )
+    T.eq({ got[1][1].path, #got[1] }, { 'a.md', 2 })
+    T.eq(api.status().rows, 3)
+  end)
+  srv.close()
+end)

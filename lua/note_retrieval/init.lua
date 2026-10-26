@@ -37,10 +37,16 @@ function M.search(query, opts, cb)
 end
 
 --- The notes closest to the note at `path`, from its row in the index (no server call): a list of
---- `{ path, score, title }`, or `nil, message`. `opts` as for `search`.
+--- `{ path, score, title }`, or `nil, message`. `opts` as for `search`; a path that is not absolute
+--- is relative to the vault of the current note.
 ---@param path string
 ---@param opts? { k?: integer, min_similarity?: number, exclude?: string[], root?: string }
 function M.related(path, opts)
+  opts = opts or {}
+  if not opts.root and path:sub(1, 1) ~= '/' then
+    -- A vault-relative path: the vault is the one of the current note.
+    opts = vim.tbl_extend('force', opts, { root = require('note_retrieval.status').current_root() })
+  end
   return require('note_retrieval.search').related(path, opts)
 end
 

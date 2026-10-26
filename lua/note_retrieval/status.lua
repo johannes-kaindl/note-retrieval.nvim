@@ -16,11 +16,23 @@ local MODE_TEXT = {
   eigen = 'eigen (the index of this plugin)',
 }
 
---- The vault of the current note: from its file name, else from the working directory (the roots
+-- The path of a buffer that holds a file, or nil (a scratch buffer such as the panel or the
+-- :checkhealth page has none).
+local function file_of(buf)
+  if buf > 0 and vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == '' then
+    local name = vim.api.nvim_buf_get_name(buf)
+    if name:sub(1, 1) == '/' then
+      return name
+    end
+  end
+end
+
+--- The vault of the current note: from its file name, else from the buffer you came from (when the
+--- current one is the panel or the :checkhealth page), else from the working directory (the roots
 --- option wins, as everywhere). Returns the root, or `nil, message`.
 function M.current_root(cfg)
-  local name = vim.api.nvim_buf_get_name(0)
-  return roots.find_root(name:sub(1, 1) == '/' and name or nil, cfg or (config.resolve()))
+  local name = file_of(vim.api.nvim_get_current_buf()) or file_of(vim.fn.bufnr('#'))
+  return roots.find_root(name, cfg or (config.resolve()))
 end
 
 -- "3 days ago" and the like for a number of milliseconds.

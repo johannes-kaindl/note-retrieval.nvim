@@ -409,11 +409,12 @@ local function with_eigen(extra, dbl, fn)
   end)
 end
 
+-- The bytes of a file (compared as they are: `vim.fn.sha256` of a string with NUL fails on Neovim 0.10).
 local function sha_of(path)
   local f = assert(io.open(path, 'rb'))
   local s = f:read('*a')
   f:close()
-  return vim.fn.sha256(s)
+  return s
 end
 
 -- Waits until the notes recorded hold one with `part`.

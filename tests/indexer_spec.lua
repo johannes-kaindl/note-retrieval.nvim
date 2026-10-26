@@ -41,7 +41,7 @@ local function mem_storage()
     return s.files[p]
   end
   s.write = function(p, bytes)
-    if s.fail then
+    if s.fail or s.fail_path == p then
       error('disk full', 0)
     end
     s.files[p] = bytes
@@ -309,8 +309,9 @@ T.case(
       update(ix, 'extra.md', '# x\n\nmore')
       local ok, err = ix:persist()
       T.eq(ok, nil)
-      T.eq(err.kind, 'model-mismatch')
+      T.eq(err.kind, 'not-ready')
       T.ok(err.message:find(':NoteRetrieval reindex', 1, true), err.message)
+      T.ok(err.message:find('built with "m1"', 1, true), err.message)
       T.eq(st.files[ix.path], before)
       T.eq(reindex(ix).added, 3)
       T.eq(decode(st.files[ix.path]).manifest.embedding_model, 'm2')
@@ -567,5 +568,119 @@ T.case(':NoteRetrieval reset: names a running reindex and leaves it alone', func
     -- counter: with nothing running the message says nothing about a run
     require('note_retrieval.command').reset()
     T.eq((indexer.for_root(root)), nil)
+  end)
+end)
+
+T.case('model change: the old vectors are not carried over, also when the index file goes away', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    assert(indexer.for_root(root, { embedder = embedder('sync').fn, model = 'm2', dim = DIM }))
+    T.eq(ix.live:note_count(), 0)
+    -- the file is removed behind our back: nothing of model m1 may come back under the name m2
+    st.files[ix.path] = nil
+    T.eq(ix:sync(), true)
+    update(ix, 'extra.md', '# x\n\nmore')
+    T.eq(ix:persist(), true)
+    local d = decode(st.files[ix.path])
+    T.eq(d.paths, { 'extra.md' })
+    T.eq(d.manifest.embedding_model, 'm2')
+  end)
+end)
+
+T.case("reindex: memory behind the disk does not let a dying server thin another Neovim's index", function()
+  with_vault(10, function(root, cfg)
+    local st = mem_storage()
+    -- this indexer starts with no index file (memory empty)
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    T.eq(ix.live:note_count(), 0)
+    -- another Neovim then writes a full index of the same vault and model: built here by the
+    -- same indexer with a storage of its own, then put in place as the other process's write
+    local base = vim.fn.tempname() .. '/v'
+    vim.fn.mkdir(base, 'p')
+    for i = 1, 10 do
+      local f = assert(io.open(('%s/note-%03d.md'):format(base, i), 'wb'))
+      f:write(('# Note %d\n\nsome words about note number %d'):format(i, i))
+      f:close()
+    end
+    local st2 = mem_storage()
+    local other = new_ix(base, cfg, st2, embedder('sync'))
+    T.eq(select(2, reindex(other)), nil)
+    local theirs = st2.files[other.path]
+    vim.fn.delete(vim.fs.dirname(base), 'rf')
+    T.eq(decode(theirs).manifest.count, 10)
+    st.files[ix.path], st.ver[ix.path] = theirs, 99
+    T.eq(ix.live:note_count(), 0) -- memory still as it was before their write
+    -- the server dies after two notes
+    local calls = 0
+    ix.embedder = function(texts, cb)
+      calls = calls + 1
+      if calls == 1 or calls > 3 then
+        return cb(nil, 'server gone')
+      end
+      local vecs = {}
+      for i = 1, #texts do
+        vecs[i] = { 1, 2, 3, 4 }
+      end
+      cb(vecs)
+    end
+    local report, err = reindex(ix)
+    T.eq(#report.failed > 0, true)
+    T.eq(err.kind, 'incomplete')
+    T.eq(st.files[ix.path], theirs)
+  end)
+end)
+
+T.case('reindex: a failed write after a cancel reaches the caller', function()
+  with_vault(70, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    local before = st.files[ix.path]
+    ix.embedder = embedder('defer').fn
+    local stopped = false
+    local report, err = reindex(ix, {
+      on_progress = function()
+        if not stopped then
+          stopped = true
+          st.fail_path = ix.path -- the copy is made, the write of the index fails
+          indexer.stop(root)
+        end
+      end,
+    })
+    T.eq(report.cancelled, true)
+    T.eq(err.kind, 'write-failed')
+    T.ok(err.message:find('disk full', 1, true), err.message)
+    T.eq(indexer.status(root).last_error.kind, 'write-failed')
+    T.eq(st.files[ix.path], before)
+  end)
+end)
+
+T.case('reindex after a model change: a dying server does not thin the index of the old model', function()
+  with_vault(10, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    local before = st.files[ix.path]
+    -- the new model: memory starts empty and the disk holds model m1, so only the count read from
+    -- the disk tells how much a thin result would lose
+    local calls = 0
+    local dying = function(texts, cb)
+      calls = calls + 1
+      if calls == 1 or calls > 3 then
+        return cb(nil, 'server gone')
+      end
+      local vecs = {}
+      for i = 1, #texts do
+        vecs[i] = { 1, 2, 3, 4 }
+      end
+      cb(vecs)
+    end
+    assert(indexer.for_root(root, { embedder = dying, model = 'm2', dim = DIM }))
+    local report, err = reindex(ix)
+    T.eq(#report.failed > 0, true)
+    T.eq(err.kind, 'incomplete')
+    T.eq(st.files[ix.path], before)
   end)
 end)

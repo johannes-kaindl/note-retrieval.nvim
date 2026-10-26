@@ -236,8 +236,11 @@ local function guarded_storage(self)
         handle.release()
       end
       if not ok then
-        error(raised_failure(err), 0)
+        -- The kit swallows a failed write after a cancel (it only warns); `reindex` reads this.
+        self.write_error = raised_failure(err)
+        error(self.write_error, 0)
       end
+      self.write_error = nil
     end,
   }
   return s
@@ -312,11 +315,29 @@ local function adopt(self)
     self.live:mark_fresh()
     self.not_ready = nil
     self.seen = disk.stat
+    self.disk_count = 0
     return true
+  end
+  self.disk_count = disk.index.count
+  -- Vectors of another model never sit in memory under this model's name: only a reindex writes then.
+  local disk_model = disk.index.manifest and disk.index.manifest.embedding_model
+  if
+    type(disk_model) == 'string'
+    and vim.trim(disk_model) ~= ''
+    and not guard.embedding_model_matches_index(self.model, disk_model)
+  then
+    self.live:mark_unready()
+    self.not_ready = ('the index on disk was built with %q, this setup embeds with %q'):format(
+      vim.trim(disk_model),
+      self.model
+    )
+    self.seen = disk.stat
+    return nil, self.not_ready
   end
   local ok, err = pcall(self.live.init, self.live, disk.index, disk.stamps)
   if not ok then
     self.live:mark_unready()
+    self.seen = disk.stat
     if type(err) == 'table' and err.kind == 'dim-mismatch' then
       self.not_ready = ('the index on disk has %d columns, this setup %d'):format(disk.index.dim, self.dim)
     else
@@ -336,9 +357,10 @@ end
 --- The indexer of the own index of `root`; one per root, the same table on every call. The first
 --- call needs `opts` = `{ embedder = function(texts, cb), model = string, dim = 256, cfg = options }`
 --- or `{ resolved = <embedder.resolve result>, cfg = ... }`; `cfg` defaults to `config.resolve()`.
---- A later call may bring a new embedder or model: the embedder is taken over, a new model
---- builds a new kit indexer from the one in memory (`stamps_snapshot` handed over); while a reindex
---- runs nothing is replaced. Returns `ix`, or `nil, message` (not mode 'eigen', no embedder).
+--- A later call may bring a new embedder or model: the embedder is taken over, a new model (or
+--- size) builds a new kit indexer that starts from the disk and carries nothing over from memory
+--- (the old vectors would sit there under the new model's name); live writes are refused until a
+--- reindex when the index on disk has another model. While a reindex runs nothing is replaced. Returns `ix`, or `nil, message` (not mode 'eigen', no embedder).
 --- `ix.live` is the kit's indexer (`update`, `remove`, `rename`); write only through `ix:persist`.
 function M.for_root(root, opts)
   opts = opts or {}
@@ -354,19 +376,12 @@ function M.for_root(root, opts)
     if embedder and not ix.run.running then
       ix.embedder = embedder
       if model and (model ~= ix.model or dim ~= ix.dim) then
-        local old = ix.live
+        -- The vectors in memory belong to the old model: none of them is carried over. The new
+        -- indexer starts from the disk, which it takes only when the model there is its own.
         ix.model, ix.dim = model, dim
         ix.live = new_live(ix, model, dim)
-        if old:is_ready() then
-          local ok = pcall(ix.live.init, ix.live, old:build_index(), old:stamps_snapshot())
-          if not ok then
-            ix.not_ready = ('the vectors in memory have another size than this setup (%d columns)'):format(
-              dim
-            )
-          end
-        else
-          ix.live:mark_unready()
-        end
+        ix.seen = nil
+        adopt(ix)
       end
     end
     return ix
@@ -458,6 +473,7 @@ function Ix:persist(reason)
     return nil, why
   end
   self.last_error = nil
+  self.disk_count = self.live:note_count()
   return true
 end
 
@@ -499,7 +515,11 @@ function Ix:reindex(cb, opts)
       failure('no-notes', 'no Markdown notes found under ' .. self.root .. ', so the index stays as it is')
     )
   end
-  local before = self.live:note_count()
+  -- Memory can be behind the disk (another Neovim wrote, or the file was unreadable at start): the
+  -- stock of the run and the "thin result" check must start from what is on disk.
+  self:sync()
+  self.write_error = nil
+  local before = math.max(self.live:note_count(), self.disk_count or 0)
   local run = { running = true, done = 0, indexed = 0, total = #paths, started = now_ms(), stopping = false }
   self.run = run
   self.backup_next = true
@@ -563,7 +583,14 @@ function Ix:reindex(cb, opts)
         end
       end
       -- A cancelled run was written by the kit (the mix of the new rows and the old stock) or, when
-      -- the index on disk belongs to another model, deliberately not.
+      -- the index on disk belongs to another model, deliberately not. The kit only warns when that
+      -- write fails; the wrapper kept the failure.
+      if report.cancelled then
+        result_err = self.write_error
+        if not result_err then
+          self.disk_count = self.live:note_count()
+        end
+      end
       self.backup_next = false
       self.last_error = result_err
       cb(report, result_err)

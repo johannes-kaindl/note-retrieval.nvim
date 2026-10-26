@@ -163,7 +163,7 @@ function M.reindex_lines(info, add)
   end
   if r.running then
     add(
-      'reindex',
+      r.kind == 'sync' and 'update' or 'reindex',
       ('%s %d/%d notes (started %s)'):format(
         r.stopping and 'stopping' or 'running',
         r.done,

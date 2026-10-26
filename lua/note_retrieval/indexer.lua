@@ -7,7 +7,7 @@
 -- state after a cancel) goes through the storage wrapper below, so none of them can skip a step.
 -- Errors are values `{ kind, message }` (`message` is a plain sentence with the next step); the
 -- kinds are: locked, not-eigen, options-changed, model-mismatch, dim-mismatch, shrink, not-ready,
--- unreadable, changed, backup-failed, write-failed, running, no-notes, incomplete, failed.
+-- unreadable, changed, backup-failed, write-failed, running, no-notes, incomplete, failed, no-indexer.
 local config = require('note_retrieval.config')
 local embedder_lib = require('note_retrieval.embedder')
 local guard = require('note_retrieval.kit.index_guard')
@@ -478,12 +478,44 @@ function Ix:persist(reason)
   return true
 end
 
+-- The refusal when a run is going: a reindex and an update of the index never run together.
+local function running_failure(self)
+  if self.run.kind == 'sync' then
+    return failure(
+      'running',
+      'an update of the index is running (:NoteRetrieval status shows it); try again when it is done'
+    )
+  end
+  return failure('running', 'a reindex is already running; :NoteRetrieval stop ends it')
+end
+
 local function on_main_loop(fn)
   if vim.in_fast_event() then
     vim.schedule(fn)
   else
     fn()
   end
+end
+
+-- The text of a note (vault-relative path), or nil and why.
+local function read_note(root, path)
+  local f, err = io.open(root .. '/' .. path, 'rb')
+  if not f then
+    return nil, err
+  end
+  local text = f:read('*a')
+  f:close()
+  return text
+end
+
+-- The stamp the index keeps with a row, `{ mtime in ms, size }` of the file, or nil. The kit takes
+-- it AFTER `read`, so an old stamp never sits on a new vector.
+local function stamp_note(root, path)
+  local st = uv.fs_stat(root .. '/' .. path)
+  if not st then
+    return nil
+  end
+  return { st.mtime.sec * 1000 + math.floor(st.mtime.nsec / 1e6), st.size }
 end
 
 --- Rebuilds the whole index from the notes of the vault. `cb(report, err)`: `report` is
@@ -500,7 +532,7 @@ function Ix:reindex(cb, opts)
     cb(nil, err)
   end
   if self.run.running then
-    return fail(failure('running', 'a reindex is already running; :NoteRetrieval stop ends it'))
+    return fail(running_failure(self))
   end
   local refusal = mode_refusal(self)
   if refusal then
@@ -522,27 +554,24 @@ function Ix:reindex(cb, opts)
   self.write_error = nil
   self.wrote = false
   local before = math.max(self.live:note_count(), self.disk_count or 0)
-  local run = { running = true, done = 0, indexed = 0, total = #paths, started = now_ms(), stopping = false }
+  local run = {
+    running = true,
+    kind = 'reindex',
+    done = 0,
+    indexed = 0,
+    total = #paths,
+    started = now_ms(),
+    stopping = false,
+  }
   self.run = run
   self.backup_next = true
   self.last_error = nil
   local root = self.root
   local function read(path)
-    local f, err = io.open(root .. '/' .. path, 'rb')
-    if not f then
-      return nil, err
-    end
-    local text = f:read('*a')
-    f:close()
-    return text
+    return read_note(root, path)
   end
-  -- The stamp is taken by the kit AFTER `read`, so an old stamp never sits on a new vector.
   local function stamp_for(path)
-    local st = uv.fs_stat(root .. '/' .. path)
-    if not st then
-      return nil
-    end
-    return { st.mtime.sec * 1000 + math.floor(st.mtime.nsec / 1e6), st.size }
+    return stamp_note(root, path)
   end
   local function progress(done, indexed, total)
     run.done, run.indexed, run.total = done, indexed, total
@@ -601,11 +630,201 @@ function Ix:reindex(cb, opts)
   end)
 end
 
+-- `stat_of` for every note: `{ [path] = { mtime in ms, size } }`, taken in groups so Neovim stays
+-- responsive on a big vault. `cb(map)`.
+local STAT_GROUP = 300
+local function stamps_of_notes(root, paths, cb)
+  local map = {}
+  local i = 1
+  local function step()
+    local last = math.min(i + STAT_GROUP - 1, #paths)
+    for k = i, last do
+      local st = stamp_note(root, paths[k])
+      if st then
+        map[paths[k]] = st
+      end
+    end
+    i = last + 1
+    if i > #paths then
+      return cb(map)
+    end
+    vim.schedule(step)
+  end
+  vim.schedule(step)
+end
+
+-- What the index holds against the vault: the paths to embed (not in the index, older than the
+-- note, or a zero row) and the paths to drop (no longer a note). No embedding, no write.
+local function delta_of(self, note_paths, current)
+  local built = self.live:build_index()
+  local snapshot = self.live:stamps_snapshot()
+  local stamps, values = {}, {}
+  for r, p in ipairs(built.paths) do
+    stamps[r] = snapshot[p] or guard.UNKNOWN_STAMP
+  end
+  local first = built.ffi and 0 or 1
+  for k = 0, built.count * built.dim - 1 do
+    values[k + 1] = built.data[first + k]
+  end
+  local diff = guard.diff_index_vs_vault(built.paths, note_paths)
+  local gone = {}
+  for _, p in ipairs(diff.stale) do
+    gone[p] = true
+  end
+  local want, seen = {}, {}
+  local function add(list)
+    for _, p in ipairs(list) do
+      if not seen[p] and not gone[p] then
+        seen[p] = true
+        want[#want + 1] = p
+      end
+    end
+  end
+  add(diff.missing)
+  add(guard.find_stale_vector_paths(built.paths, stamps, current))
+  add(guard.find_dead_vector_paths(built.paths, values, built.dim))
+  table.sort(want)
+  local had = {}
+  for _, p in ipairs(built.paths) do
+    had[p] = true
+  end
+  return { embed = want, drop = diff.stale, had = had }
+end
+
+--- Brings the own index in line with the notes of the vault, in the background: embeds the notes
+--- that are new, changed since their vector was made (the stamp `{ mtime, size }` of the row against
+--- the file) or have a zero row, drops the rows of notes that are gone, then writes once
+--- (`persist('heal')`). Notes empty after the front matter get no row (a row they had is dropped).
+--- Reads the index file again first when it changed (`Ix:sync`), which replaces unsaved live changes
+--- in memory: call this before own changes, never between an `update` and its `persist`. Asks the
+--- guard about the model on disk BEFORE it embeds anything. Refused while a reindex or another
+--- update runs. Progress is in `status(root)` (`kind = 'sync'`). `cb(result, err)`: `result` is
+--- `{ embedded, removed, failed (paths), skipped_empty (paths), total }` or nil when the run did not
+--- start; `err` is nil or `{ kind, message }` (the result was not written, memory is the disk again).
+--- A write rewrites the file, so `index.current` loads a NEW `paths` table; nothing is mutated.
+function Ix:sync_vault(cb)
+  cb = cb or function() end
+  local function fail(err)
+    self.last_error = err
+    cb(nil, err)
+  end
+  if self.run.running then
+    return fail(running_failure(self))
+  end
+  local refusal = mode_refusal(self)
+  if refusal then
+    return fail(refusal)
+  end
+  local _, info = roots.mode(self.root, self.cfg)
+  local paths, skipped = roots.note_paths(self.root, info.exclude, info.index_dir)
+  if not paths then
+    return fail(failure('no-notes', 'cannot read the notes: ' .. tostring(skipped)))
+  end
+  if #paths == 0 then
+    return fail(
+      failure('no-notes', 'no Markdown notes found under ' .. self.root .. ', so the index stays as it is')
+    )
+  end
+  self:sync()
+  -- Before any embedding: a blocked heal must not leave foreign vectors or spent calls behind.
+  local decision = self.live:check_model_against_disk('heal')
+  if not decision.allowed then
+    return fail(refusal_failure(self, decision))
+  end
+  if not self.live:is_ready() then
+    return fail(refusal_failure(self, { kind = 'not-ready' }))
+  end
+  local run = { running = true, kind = 'sync', done = 0, indexed = 0, total = 0, started = now_ms() }
+  self.run = run
+  self.last_error = nil
+  self.write_error = nil
+  local root = self.root
+  local function finish(result, err)
+    run.running = false
+    self.last_error = err
+    cb(result, err)
+  end
+  stamps_of_notes(root, paths, function(current)
+    local ok, delta = pcall(delta_of, self, paths, current)
+    if not ok then
+      return finish(
+        nil,
+        failure('failed', 'the index could not be compared with the notes: ' .. tostring(delta))
+      )
+    end
+    run.total = #delta.embed
+    for _, p in ipairs(delta.drop) do
+      self.live:remove(p)
+    end
+    local removed = #delta.drop
+    local function wrap_up(report)
+      for _, p in ipairs(report.skipped_empty) do
+        if delta.had[p] then
+          self.live:remove(p)
+          removed = removed + 1
+        end
+      end
+      local result = {
+        embedded = report.added,
+        removed = removed,
+        failed = report.failed,
+        skipped_empty = report.skipped_empty,
+        total = #delta.embed,
+      }
+      run.report = report
+      if report.added == 0 and removed == 0 then
+        return finish(result, nil)
+      end
+      local done, persisted, why = pcall(self.persist, self, 'heal')
+      if not done then
+        persisted, why = nil, raised_failure(persisted)
+      end
+      if not persisted then
+        -- Memory holds a state that was refused: the disk is the truth again.
+        self.seen = nil
+        adopt(self)
+        return finish(nil, why)
+      end
+      finish(result, nil)
+    end
+    if #delta.embed == 0 then
+      return wrap_up({ added = 0, failed = {}, skipped_empty = {} })
+    end
+    self.live:heal_missing(delta.embed, function(path)
+      return read_note(root, path)
+    end, function(done_n, indexed, total)
+      run.done, run.indexed, run.total = done_n, indexed, total
+    end, function(path)
+      return stamp_note(root, path)
+    end, function(report, err)
+      on_main_loop(function()
+        if not report then
+          -- Rows already embedded are in memory but unsaved; the disk is the truth again.
+          self.seen = nil
+          adopt(self)
+          return finish(nil, failure('failed', 'the update failed: ' .. tostring(err)))
+        end
+        wrap_up(report)
+      end)
+    end)
+  end)
+end
+
+--- `Ix:sync_vault` for the indexer of `root` (made by `for_root` before). `cb(result, err)`.
+function M.sync(root, cb)
+  local ix = entries[normalise(root)]
+  if not ix then
+    local err = failure('no-indexer', 'no indexer for this vault yet; :NoteRetrieval update makes one')
+    return (cb or function() end)(nil, err)
+  end
+  ix:sync_vault(cb)
+end
+
 --- Asks a running reindex to stop at the next group of notes; what it reached is written, nothing
 --- else is lost. Returns true when one was running.
 function M.stop(root)
   local ix = entries[normalise(root)]
-  if not ix or not ix.run.running then
+  if not ix or not ix.run.running or ix.run.kind == 'sync' then
     return false
   end
   ix.run.stopping = true
@@ -626,7 +845,7 @@ local function lock_info(files, own)
   return { state = age > lock.STALE_AFTER_S and 'stale' or 'other', age = math.max(age, 0) }
 end
 
---- What `root` has: `{ indexer, running, stopping, done, indexed, total, started (ms since the
+--- What `root` has: `{ indexer, running, kind ('reindex'|'sync' while running), stopping, done, indexed, total, started (ms since the
 --- epoch), lock = { state = 'free'|'own'|'other'|'stale', age }, last_error, warnings, report,
 --- model, path }`. Needs no indexer; the lock is read from the file.
 function M.status(root)
@@ -636,6 +855,7 @@ function M.status(root)
   return {
     indexer = ix ~= nil,
     running = run.running == true,
+    kind = run.running and run.kind or nil,
     stopping = run.stopping == true,
     done = run.done or 0,
     indexed = run.indexed or 0,
@@ -659,7 +879,7 @@ function M.statusline(root)
     local ix = entries[key]
     if ix and ix.run.running then
       return ('%s %d/%d'):format(
-        ix.run.stopping and 'stopping' or 'indexing',
+        ix.run.stopping and 'stopping' or (ix.run.kind == 'sync' and 'updating' or 'indexing'),
         ix.run.done or 0,
         ix.run.total or 0
       )

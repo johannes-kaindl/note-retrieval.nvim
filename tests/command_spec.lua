@@ -49,7 +49,7 @@ end)
 T.case('complete: the subcommands only, and only in the first place', function()
   T.eq(
     command.complete('', 'NoteRetrieval '),
-    { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop' }
+    { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
   )
   T.eq(command.complete('re', 'NoteRetrieval re'), { 'reindex', 'related', 'reset' })
   T.eq(command.complete('st', 'NoteRetrieval st'), { 'status', 'stop' })
@@ -62,7 +62,10 @@ T.case('an unknown subcommand and none at all are said in words', function()
     run('bogus')
     run('')
     T.ok(seen.notes[1]:find('unknown subcommand "bogus"', 1, true), seen.notes[1])
-    T.ok(seen.notes[1]:find('model, reindex, related, reset, search, status, stop', 1, true), seen.notes[1])
+    T.ok(
+      seen.notes[1]:find('model, reindex, related, reset, search, status, stop, update', 1, true),
+      seen.notes[1]
+    )
     T.ok(seen.notes[2]:find('a subcommand is needed', 1, true), seen.notes[2])
     T.eq(seen.levels[1], vim.log.levels.ERROR)
   end)
@@ -834,3 +837,57 @@ T.case('search in Visual mode: a selection of multibyte characters is cut at cha
   T.eq(vim.json.decode(embeds[1].body).input, { 'öü日本語 x\nß' })
   T.eq(vim.json.decode(embeds[2].body).input, { 'öü\n€' })
 end)
+
+T.case(
+  'update in mode obsidian: the same read-only sentence, the index of Obsidian untouched, no indexer',
+  function()
+    V.with_vault(function(root)
+      vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/a.md'))
+      local before = sha_of(root .. '/_vaultrag/index.bin')
+      with_ui({}, function(seen)
+        run('update')
+        T.ok(seen.notes[1]:find('read only here: Obsidian owns the index', 1, true), seen.notes[1])
+        T.eq(seen.levels[1], vim.log.levels.INFO)
+        T.eq(#seen.notes, 1)
+      end)
+      T.eq(sha_of(root .. '/_vaultrag/index.bin'), before)
+      T.eq(indexer.status(root).indexer, false)
+    end)
+  end
+)
+
+T.case(
+  'update in mode eigen: embeds what is missing, says the counts, a second one finds nothing to do',
+  function()
+    local dbl = double()
+    with_eigen(2, dbl, function(root)
+      with_ui({}, function(seen)
+        run('update')
+        T.ok(
+          seen.notes[1]:find('updating the index of ' .. root .. ' with the model m1', 1, true),
+          seen.notes[1]
+        )
+        wait_note(seen, 'update of ' .. root)
+        T.ok(note_with(seen, '5 embedded, 0 removed, 0 failed'), vim.inspect(seen.notes))
+        V.put(root .. '/n001.md', '')
+        os.remove(root .. '/n002.md')
+        run('update')
+        T.ok(
+          vim.wait(10000, function()
+            return note_with(seen, '0 embedded, 2 removed, 0 failed') ~= nil
+          end, 5),
+          vim.inspect(seen.notes)
+        )
+        run('update')
+        T.ok(
+          vim.wait(10000, function()
+            return note_with(seen, 'is current: nothing to embed or remove') ~= nil
+          end, 5),
+          vim.inspect(seen.notes)
+        )
+      end)
+      local d = assert(vrix.decode(assert(io.open(root .. '/_idx/index.bin', 'rb')):read('*a')))
+      T.eq(#d.paths, 3)
+    end)
+  end
+)

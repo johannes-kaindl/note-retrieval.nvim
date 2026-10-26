@@ -1,5 +1,5 @@
 -- domain: note_retrieval
--- :NoteRetrieval {related|search|status|model|reindex|stop|reset}. Each subcommand is a function here;
+-- :NoteRetrieval {related|search|status|model|reindex|update|stop|reset}. Each subcommand is a function here;
 -- the <Plug> mappings of plugin/note_retrieval.lua call the same ones.
 local config = require('note_retrieval.config')
 local messages = require('note_retrieval.messages')
@@ -7,7 +7,7 @@ local roots = require('note_retrieval.roots')
 
 local M = {}
 
-M.SUBCOMMANDS = { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop' }
+M.SUBCOMMANDS = { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop', 'update' }
 
 local reported -- the option problems last shown, so a run does not repeat them every time
 
@@ -160,11 +160,16 @@ function M.reindex()
     )
   end
   local indexer = require('note_retrieval.indexer')
-  if indexer.status(root).running then
+  local running = indexer.status(root)
+  if running.running then
     return vim.notify(
-      ('note-retrieval: a reindex of %s is already running (:NoteRetrieval status shows it, :NoteRetrieval stop ends it)'):format(
-        root
-      ),
+      running.kind == 'sync'
+          and ('note-retrieval: an update of %s is running (:NoteRetrieval status shows it); reindex when it is done'):format(
+            root
+          )
+        or ('note-retrieval: a reindex of %s is already running (:NoteRetrieval status shows it, :NoteRetrieval stop ends it)'):format(
+          root
+        ),
       vim.log.levels.WARN
     )
   end
@@ -186,6 +191,76 @@ function M.reindex()
     )
     ix:reindex(function(report, rerr)
       report_run(root, report, rerr)
+    end)
+  end)
+end
+
+-- The sentence for the result of an update: "3 embedded, 1 removed, 0 failed".
+local function update_sentence(root, result)
+  local text = ('%d embedded, %d removed, %d failed'):format(result.embedded, result.removed, #result.failed)
+  if result.embedded == 0 and result.removed == 0 and #result.failed == 0 then
+    return ('the index of %s is current: nothing to embed or remove'):format(root)
+  end
+  if #result.failed > 0 then
+    return ('update of %s: %s (:NoteRetrieval update tries the failed notes again)'):format(root, text)
+  end
+  return ('update of %s: %s'):format(root, text)
+end
+
+--- :NoteRetrieval update — bring the own index in line with the notes of the vault of the current
+--- note: embed the new and changed ones, drop the deleted ones, write once; in the background. Only in
+--- mode eigen: an index of the Obsidian plugin is never written here.
+function M.update()
+  local cfg = options()
+  local root, why = require('note_retrieval.status').current_root(cfg)
+  if not root then
+    return messages.notify({ kind = 'no-index', detail = why })
+  end
+  local mode, info = roots.mode(root, cfg)
+  if not mode then
+    return vim.notify('note-retrieval: ' .. tostring(info), vim.log.levels.ERROR)
+  end
+  if mode == 'obsidian' then
+    return vim.notify(
+      'note-retrieval: read only here: Obsidian owns the index of '
+        .. root
+        .. ' (the Vault Retrieval plugin updates it)',
+      vim.log.levels.INFO
+    )
+  end
+  local indexer = require('note_retrieval.indexer')
+  local running = indexer.status(root)
+  if running.running then
+    return show_writer_error({
+      kind = 'running',
+      message = running.kind == 'sync'
+          and ('an update of %s is already running (:NoteRetrieval status shows it)'):format(root)
+        or ('a reindex of %s is running; update when it is done'):format(root),
+    })
+  end
+  require('note_retrieval.embedder').resolve(cfg, nil, function(resolved, err)
+    if not resolved then
+      return messages.notify(err, { mode = mode })
+    end
+    local ix, msg = indexer.for_root(root, { resolved = resolved, dim = resolved.dim, cfg = cfg })
+    if not ix then
+      return vim.notify('note-retrieval: ' .. tostring(msg), vim.log.levels.WARN)
+    end
+    vim.notify(
+      ('note-retrieval: updating the index of %s with the model %s (:NoteRetrieval status shows the progress)'):format(
+        root,
+        resolved.model
+      ),
+      vim.log.levels.INFO
+    )
+    indexer.sync(root, function(result, rerr)
+      if not result then
+        return show_writer_error(rerr)
+      end
+      vim.notify(
+        'note-retrieval: ' .. update_sentence(root, result),
+        #result.failed > 0 and vim.log.levels.WARN or vim.log.levels.INFO
+      )
     end)
   end)
 end

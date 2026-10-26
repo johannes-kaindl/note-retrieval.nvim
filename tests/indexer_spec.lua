@@ -728,3 +728,226 @@ T.case(
     end)
   end
 )
+
+-- ix:sync_vault to its end: result, err.
+local function sync_vault(ix)
+  local res, answered = wait.result(function(done)
+    ix:sync_vault(function(result, err)
+      done({ result, err })
+    end)
+  end, 20000)
+  assert(answered, 'the update did not finish')
+  return res[1], res[2]
+end
+
+local function write(path, text)
+  local f = assert(io.open(path, 'wb'))
+  f:write(text)
+  f:close()
+end
+
+T.case(
+  'sync: new, changed, deleted and emptied notes; a note empty after the front matter gets no row',
+  function()
+    with_vault(5, function(root, cfg)
+      local st = mem_storage()
+      local ix = new_ix(root, cfg, st, embedder('sync'))
+      T.eq(select(2, reindex(ix)), nil)
+      local before = decode(st.files[ix.path])
+      T.eq(#before.paths, 5)
+      write(root .. '/new.md', '# New\n\nfresh words')
+      write(root .. '/note-002.md', '# Note 2\n\nchanged, and now a good deal longer than it was')
+      os.remove(root .. '/note-003.md')
+      write(root .. '/note-004.md', '---\ntitle: x\n---\n')
+      write(root .. '/empty.md', '---\ntitle: y\n---\n')
+      local result, err = sync_vault(ix)
+      T.eq(err, nil)
+      T.eq(result.embedded, 2)
+      T.eq(result.removed, 2)
+      T.eq(#result.failed, 0)
+      local d = decode(st.files[ix.path])
+      T.eq(d.paths, { 'new.md', 'note-001.md', 'note-002.md', 'note-005.md' })
+      -- the changed note carries the stamp of the new file; counter-proof: the stamp comparison
+      local fs = assert(uv.fs_stat(root .. '/note-002.md'))
+      for i, path in ipairs(d.paths) do
+        if path == 'note-002.md' then
+          T.eq(d.stamps[i], { fs.mtime.sec * 1000 + math.floor(fs.mtime.nsec / 1e6), fs.size })
+        end
+      end
+      -- nothing left to do: a second update embeds nothing and writes nothing
+      local writes, calls = #st.writes, ix.live and 0
+      local again = sync_vault(ix)
+      T.eq({ again.embedded, again.removed }, { 0, 0 })
+      T.eq(#st.writes, writes)
+      T.eq(calls, 0)
+      T.eq(indexer.status(root).running, false)
+    end)
+  end
+)
+
+T.case('sync: a zero row is embedded again', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local zero = false
+    local emb = embedder('sync')
+    local inner = emb.fn
+    emb.fn = function(texts, cb)
+      if zero then
+        local vecs = {}
+        for i = 1, #texts do
+          vecs[i] = { 0, 0, 0, 0 }
+        end
+        return cb(vecs)
+      end
+      inner(texts, cb)
+    end
+    local ix = new_ix(root, cfg, st, emb)
+    zero = true
+    T.eq(select(2, reindex(ix)), nil)
+    zero = false
+    local result = sync_vault(ix)
+    T.eq(result.embedded, 3)
+  end)
+end)
+
+T.case('sync: a foreign model on disk blocks the update before anything is embedded', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local emb = embedder('sync')
+    local ix = new_ix(root, cfg, st, emb, 'm1')
+    T.eq(select(2, reindex(ix)), nil)
+    -- the setup changes its model: the index on disk is m1's
+    new_ix(root, cfg, st, emb, 'm2')
+    write(root .. '/new.md', '# New\n\nfresh words')
+    local calls, bytes = emb.calls, st.files[ix.path]
+    local result, err = sync_vault(ix)
+    T.eq(result, nil)
+    T.eq(err.kind, 'model-mismatch')
+    T.eq(emb.calls, calls)
+    T.eq(st.files[ix.path], bytes)
+    T.eq(indexer.status(root).running, false)
+  end)
+end)
+
+T.case('sync: the model on disk is asked again even when the stat of the file looks the same', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local emb = embedder('sync')
+    local ix = new_ix(root, cfg, st, emb, 'm1')
+    T.eq(select(2, reindex(ix)), nil)
+    local own = st.files[ix.path]
+    -- the same index built with m2, kept as the foreign bytes
+    new_ix(root, cfg, st, emb, 'm2')
+    T.eq(select(2, reindex(ix)), nil)
+    local foreign = st.files[ix.path]
+    new_ix(root, cfg, st, emb, 'm1')
+    T.eq(select(2, reindex(ix)), nil)
+    T.eq(#foreign, #own)
+    -- another process swaps the file without the stat changing (same size, same version)
+    st.files[ix.path] = foreign
+    write(root .. '/new.md', '# New\n\nfresh words')
+    local calls = emb.calls
+    local result, err = sync_vault(ix)
+    T.eq(result, nil)
+    T.eq(err.kind, 'model-mismatch')
+    T.eq(emb.calls, calls)
+    T.eq(st.files[ix.path], foreign)
+  end)
+end)
+
+T.case('sync and reindex refuse each other while one runs', function()
+  with_vault(60, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('defer'))
+    local finished
+    ix:reindex(function()
+      finished = true
+    end)
+    local result, err
+    ix:sync_vault(function(r, e)
+      result, err = r, e
+    end)
+    T.eq(result, nil)
+    T.eq(err.kind, 'running')
+    T.ok(tostring(err):find('reindex is already running', 1, true), tostring(err))
+    T.ok(
+      vim.wait(20000, function()
+        return finished
+      end, 5),
+      'the reindex did not finish'
+    )
+    -- and the other way round: a vault with new notes makes the update embed for a while
+    write(root .. '/new.md', '# New\n\nfresh words')
+    local done
+    ix:sync_vault(function()
+      done = true
+    end)
+    T.eq(indexer.status(root).kind, 'sync')
+    T.eq(indexer.statusline(root):find('^updating') ~= nil, true)
+    local rerr
+    ix:reindex(function(_, e)
+      rerr = e
+    end)
+    T.eq(rerr.kind, 'running')
+    T.ok(tostring(rerr):find('update of the index is running', 1, true), tostring(rerr))
+    T.eq(indexer.stop(root), false)
+    T.ok(
+      vim.wait(20000, function()
+        return done
+      end, 5),
+      'the update did not finish'
+    )
+    T.eq(indexer.status(root).running, false)
+  end)
+end)
+
+T.case('sync: Neovim stays responsive while the update runs', function()
+  with_vault(40, function(root, cfg)
+    local ix = new_ix(root, cfg, mem_storage(), embedder('defer'))
+    local ticks, done = 0, false
+    local timer = uv.new_timer()
+    timer:start(1, 2, function()
+      ticks = ticks + 1
+    end)
+    local returned_before_done
+    ix:sync_vault(function()
+      done = true
+    end)
+    returned_before_done = not done
+    T.ok(
+      vim.wait(20000, function()
+        return done
+      end, 5),
+      'the update did not finish'
+    )
+    timer:stop()
+    timer:close()
+    T.eq(returned_before_done, true)
+    T.ok(ticks >= 3, 'the timer ticked only ' .. ticks .. ' times')
+  end)
+end)
+
+T.case('real file system: an update replaces the loaded paths table and never changes the old one', function()
+  with_vault(4, function(root, cfg)
+    local ix = new_ix(root, cfg, nil, embedder('sync'))
+    T.eq(select(2, reindex(ix)), nil)
+    local first = assert(index.current(root, cfg))
+    local copy = vim.deepcopy(first.paths)
+    T.eq(#copy, 4)
+    -- nothing to do: nothing is written, the same table stays
+    local noop = sync_vault(ix)
+    T.eq({ noop.embedded, noop.removed }, { 0, 0 })
+    T.ok(assert(index.current(root, cfg)).paths == first.paths, 'the table changed without a write')
+    write(root .. '/new.md', '# New\n\nfresh words')
+    os.remove(root .. '/note-001.md')
+    local result, err = sync_vault(ix)
+    T.eq(err, nil)
+    T.eq({ result.embedded, result.removed }, { 1, 1 })
+    local second = assert(index.current(root, cfg))
+    T.ok(second.paths ~= first.paths, 'the paths table was not replaced')
+    T.eq(first.paths, copy)
+    T.eq(#second.paths, 4)
+    T.eq(second.paths[1], 'new.md')
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+  end, { index_dir = '_nr' })
+end)

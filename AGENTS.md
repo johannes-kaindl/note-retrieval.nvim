@@ -42,10 +42,10 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Conventions
 
-- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 23 files plus `data/`):
+- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 24 files plus `data/`):
 
   ```
-  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance wait; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
+  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance wait edits; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
   ```
 - **Every module under `lua/note_retrieval/` except `kit/` carries `-- domain: note_retrieval` in its first five lines** (`tests/kit_spec.lua` checks it). Fachfreie helpers belong in nvim-kit (`../AGENTS.md`, "Bibliothek ab Eins"); the gate does not see `local function`s in a domain module, the reviewer does.
 - `http_stub` is vendored for tests only; no plugin module requires it.

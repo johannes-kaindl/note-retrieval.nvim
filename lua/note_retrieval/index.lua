@@ -175,6 +175,14 @@ function M.current(root, cfg)
   return fresh
 end
 
+--- What is held in memory for `root` (`load`'s table), or nil: no file access, no stat, nothing
+--- is loaded. For callers that must not pay for a first read.
+---@param root string
+function M.peek(root)
+  local entry = state[vim.fs.normalize(root)]
+  return entry and entry.loaded or nil
+end
+
 --- Forgets what is held for `root` (all roots without argument): the next `current` resolves the
 --- mode and file again and loads from scratch.
 function M.reset(root)

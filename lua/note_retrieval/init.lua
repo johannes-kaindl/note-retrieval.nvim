@@ -50,10 +50,13 @@ function M.related(path, opts)
   return require('note_retrieval.search').related(path, opts)
 end
 
---- What the plugin knows about the vault of the current note: `{ root, mode, rows, model, age,
---- endpoints, warning, problem, line }`, `line` one short line for a status line.
+--- What the plugin knows about the vault of the current note: `{ root, root_mode, loaded, mode, rows,
+--- model, age, endpoints, reindex, warning, problem, line }`, `line` one short line for a status
+--- line. Cheap: an index that is not in memory yet is not read (`loaded = false`, and `mode`, `rows`,
+--- `model` and `age` are nil); `:NoteRetrieval status`, a search or the panel load it. `reindex` is
+--- the state of the own index writer (`running`, `done`, `total`, `lock`, `last_error`, `report`).
 function M.status()
-  return require('note_retrieval.status').collect()
+  return require('note_retrieval.status').collect({ load = false })
 end
 
 return M

@@ -65,27 +65,38 @@ local TEXT = {
   ['cancelled'] = 'Cancelled.',
 }
 
-local NO_INDEX_STEP = 'Run :checkhealth note_retrieval to see which index is looked for.'
+-- The next step for a missing or unusable index. In mode eigen the plugin builds the index
+-- itself; in mode obsidian (or when the mode is not known) it only says where to look.
+local function no_index_step(mode)
+  if mode == 'eigen' then
+    return 'Run :NoteRetrieval reindex to build it (:checkhealth note_retrieval shows which index is looked for).'
+  end
+  return 'Run :checkhealth note_retrieval to see which index is looked for.'
+end
 
-local function of_string(msg)
+local function of_string(msg, mode)
   if msg == roots.NO_ROOT then
     return msg
   end
   -- Loaded here, not on top: the search module brings the index in, and a command that fails
   -- early (an unknown subcommand) must not.
   if msg == require('note_retrieval.search').NO_ROW then
-    return msg .. '. It is new, was left out, or the index is older than the note.'
+    local text = msg .. '. It is new, was left out, or the index is older than the note.'
+    if mode == 'eigen' then
+      text = text .. ' :NoteRetrieval reindex brings the index up to date.'
+    end
+    return text
   end
-  return msg .. '. ' .. NO_INDEX_STEP
+  return msg .. '. ' .. no_index_step(mode)
 end
 
-local function of_table(err)
+local function of_table(err, mode)
   local kind = err.kind
   if kind == 'no-root' or (kind == 'no-index' and err.detail == roots.NO_ROOT) then
     return roots.NO_ROOT
   end
   if kind == 'no-index' then
-    return of_string(tostring(err.detail or 'no index'))
+    return of_string(tostring(err.detail or 'no index'), mode)
   end
   if FIELDS[kind] then
     return FIELDS[kind](err)
@@ -97,29 +108,33 @@ local function of_table(err)
 end
 
 --- The sentence for an error value, without the plugin's name (for :checkhealth, which has its own
---- heading).
+--- heading). `opts.mode` is the mode of the vault the error is about, when the caller knows it: in
+--- mode `eigen` the hints for a missing index and a missing row name `:NoteRetrieval reindex`.
 ---@param err string|table a message from `related`/the index, or `{ kind, detail, … }`
+---@param opts? { mode?: string }
 ---@return string
-function M.sentence(err)
+function M.sentence(err, opts)
+  local mode = opts and opts.mode
   if type(err) == 'string' then
-    return of_string(err)
+    return of_string(err, mode)
   elseif type(err) == 'table' then
-    return of_table(err)
+    return of_table(err, mode)
   end
   return 'Unexpected error: ' .. tostring(err) .. '.'
 end
 
 --- The sentence for an error value, `note-retrieval: …`.
 ---@param err string|table
+---@param opts? { mode?: string }
 ---@return string
-function M.text(err)
-  return 'note-retrieval: ' .. M.sentence(err)
+function M.text(err, opts)
+  return 'note-retrieval: ' .. M.sentence(err, opts)
 end
 
 --- Shows the sentence of `err` (`vim.notify`, error level; "cancelled" is information).
-function M.notify(err)
+function M.notify(err, opts)
   local cancelled = type(err) == 'table' and err.kind == 'cancelled'
-  vim.notify(M.text(err), cancelled and vim.log.levels.INFO or vim.log.levels.ERROR)
+  vim.notify(M.text(err, opts), cancelled and vim.log.levels.INFO or vim.log.levels.ERROR)
 end
 
 return M

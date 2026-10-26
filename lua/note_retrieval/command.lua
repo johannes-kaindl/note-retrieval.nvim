@@ -1,12 +1,13 @@
 -- domain: note_retrieval
--- :NoteRetrieval {related|search|status|model|reset}. Each subcommand is a function here;
+-- :NoteRetrieval {related|search|status|model|reindex|stop|reset}. Each subcommand is a function here;
 -- the <Plug> mappings of plugin/note_retrieval.lua call the same ones.
 local config = require('note_retrieval.config')
 local messages = require('note_retrieval.messages')
+local roots = require('note_retrieval.roots')
 
 local M = {}
 
-M.SUBCOMMANDS = { 'model', 'related', 'reset', 'search', 'status' }
+M.SUBCOMMANDS = { 'model', 'reindex', 'related', 'reset', 'search', 'status', 'stop' }
 
 local reported -- the option problems last shown, so a run does not repeat them every time
 
@@ -41,13 +42,14 @@ function M.search(query)
     if not root then
       return messages.notify({ kind = 'no-index', detail = why })
     end
+    local mode = roots.mode(root, cfg) -- fresh: it names the next step of a missing index
     local search = require('note_retrieval.search')
     search.search(text, { root = root }, function(results, err)
       if not results then
-        return messages.notify(err)
+        return messages.notify(err, { mode = mode })
       end
       if type(err) == 'string' then
-        vim.notify(messages.text(err), vim.log.levels.WARN)
+        vim.notify(messages.text(err, { mode = mode }), vim.log.levels.WARN)
       end
       search.pick(results, { root = root })
     end)
@@ -91,41 +93,233 @@ function M.reset()
   vim.notify('note-retrieval: forgot the loaded index and vault settings' .. note, vim.log.levels.INFO)
 end
 
---- :NoteRetrieval model — list the models of the first server that answers and remember the choice.
+-- Where an error value of the writer is shown: what the person can fix and run again is a
+-- warning, what went wrong in the machine (write, backup, server) an error.
+local ERROR_KINDS = {
+  ['failed'] = true,
+  ['write-failed'] = true,
+  ['backup-failed'] = true,
+  ['unreadable'] = true,
+  ['incomplete'] = true,
+}
+
+local function show_writer_error(err)
+  local level = type(err) == 'table' and ERROR_KINDS[err.kind] and vim.log.levels.ERROR or vim.log.levels.WARN
+  vim.notify('note-retrieval: ' .. tostring(err), level)
+end
+
+local function report_run(root, report, err)
+  if not report then
+    return show_writer_error(err)
+  end
+  local failed = #(report.failed or {})
+  local head
+  if err then
+    -- The run finished but its result was not written: the old index stays.
+    return show_writer_error(err)
+  elseif report.cancelled then
+    head = ('reindex of %s stopped: %d notes indexed so far, the rest of the index is as it was'):format(
+      root,
+      report.added
+    )
+  else
+    head = ('%d notes indexed in %s'):format(report.added, root)
+  end
+  if failed > 0 then
+    vim.notify(
+      ('note-retrieval: %s; %d could not be embedded and are missing from the index (:NoteRetrieval reindex tries again)'):format(
+        head,
+        failed
+      ),
+      vim.log.levels.WARN
+    )
+  else
+    vim.notify('note-retrieval: ' .. head, vim.log.levels.INFO)
+  end
+end
+
+--- :NoteRetrieval reindex — build the index of the vault of the current note again from its notes,
+--- in the background (progress in `:NoteRetrieval status` and `indexer.statusline()`). Only in mode
+--- eigen: an index of the Obsidian plugin is never written here.
+function M.reindex()
+  local cfg = options()
+  local root, why = require('note_retrieval.status').current_root(cfg)
+  if not root then
+    return messages.notify({ kind = 'no-index', detail = why })
+  end
+  local mode, info = roots.mode(root, cfg)
+  if not mode then
+    return vim.notify('note-retrieval: ' .. tostring(info), vim.log.levels.ERROR)
+  end
+  if mode == 'obsidian' then
+    return vim.notify(
+      'note-retrieval: read only here: Obsidian owns the index of '
+        .. root
+        .. ' (the Vault Retrieval plugin rebuilds it)',
+      vim.log.levels.INFO
+    )
+  end
+  local indexer = require('note_retrieval.indexer')
+  if indexer.status(root).running then
+    return vim.notify(
+      ('note-retrieval: a reindex of %s is already running (:NoteRetrieval status shows it, :NoteRetrieval stop ends it)'):format(
+        root
+      ),
+      vim.log.levels.WARN
+    )
+  end
+  -- Not before the index header: in mode eigen the model is the option, the remembered one or asked.
+  require('note_retrieval.embedder').resolve(cfg, nil, function(resolved, err)
+    if not resolved then
+      return messages.notify(err, { mode = mode })
+    end
+    local ix, msg = indexer.for_root(root, { resolved = resolved, dim = resolved.dim, cfg = cfg })
+    if not ix then
+      return vim.notify('note-retrieval: ' .. tostring(msg), vim.log.levels.WARN)
+    end
+    vim.notify(
+      ('note-retrieval: reindexing %s with the model %s (:NoteRetrieval status shows the progress, :NoteRetrieval stop ends it)'):format(
+        root,
+        resolved.model
+      ),
+      vim.log.levels.INFO
+    )
+    ix:reindex(function(report, rerr)
+      report_run(root, report, rerr)
+    end)
+  end)
+end
+
+--- :NoteRetrieval stop — ask the running reindex of the vault of the current note to stop; what it
+--- reached is written, the rest of the index stays as it was.
+function M.stop()
+  local cfg = options()
+  local root, why = require('note_retrieval.status').current_root(cfg)
+  if not root then
+    return messages.notify({ kind = 'no-index', detail = why })
+  end
+  if require('note_retrieval.indexer').stop(root) then
+    vim.notify(
+      ('note-retrieval: stopping the reindex of %s after the notes in flight; what it reached is written'):format(
+        root
+      ),
+      vim.log.levels.INFO
+    )
+  else
+    vim.notify('note-retrieval: no reindex is running in ' .. root, vim.log.levels.INFO)
+  end
+end
+
+local function endpoint_label(ep)
+  return ep.name and ('%s (%s)'):format(ep.url, ep.name) or ep.url
+end
+
+-- Asks every configured endpoint for its models, all at once; `cb(answers)` with one entry per
+-- endpoint in priority order: `{ ep, models }` or `{ ep, error, detail }`.
+local function probe_endpoints(cfg, cb)
+  local llm = require('note_retrieval.kit.llm')
+  local eps = llm.endpoints({ endpoints = cfg.endpoints })
+  local answers, pending = {}, #eps
+  for i, ep in ipairs(eps) do
+    llm.models(ep, function(r)
+      if answers[i] then
+        return
+      end
+      answers[i] = r.error and { ep = ep, error = r.error, detail = r.detail } or { ep = ep, models = r }
+      pending = pending - 1
+      if pending == 0 then
+        cb(answers)
+      end
+    end)
+  end
+end
+
+-- The error to show when no endpoint has a model to pick: the first one that answered with an
+-- error (a wrong key must not look like a dead server), else the models are missing, else nobody
+-- answered.
+local function nothing_to_pick(answers)
+  local down, empty = {}, nil
+  for _, a in ipairs(answers) do
+    if a.error == 'unreachable' or a.error == 'timeout' then
+      down[#down + 1] = ('%s (%s)'):format(a.ep.url, a.detail)
+    elseif a.error then
+      return { kind = a.error, detail = ('%s: %s'):format(a.ep.url, a.detail) }
+    else
+      empty = empty or a.ep.url
+    end
+  end
+  if empty then
+    return { kind = 'no-model', detail = empty .. ': the server lists no model' }
+  end
+  return { kind = 'unreachable', detail = 'no endpoint answered: ' .. table.concat(down, '; ') }
+end
+
+--- :NoteRetrieval model — choose the model of an endpoint and remember it for that endpoint. With
+--- several endpoints that answer, the endpoint is asked first (the one a run uses, the first that
+--- answers, comes first in the list).
 function M.model()
   local cfg = options()
   if cfg.endpoints_error then
     return messages.notify({ kind = 'bad-config' })
   end
-  local llm = require('note_retrieval.kit.llm')
-  llm.resolve({ endpoints = cfg.endpoints }, function(r)
-    if r.error and r.error ~= 'no-model' then
-      return messages.notify({ kind = r.error, detail = r.detail })
+  probe_endpoints(cfg, function(answers)
+    -- The endpoint a run uses: the first that answers; one that answers with an error ends the walk
+    -- (as in the embedder), so its error is shown and nothing is asked of the ones behind it.
+    local in_use
+    local usable = {}
+    for _, a in ipairs(answers) do
+      if a.error and a.error ~= 'unreachable' and a.error ~= 'timeout' and not in_use then
+        return messages.notify({ kind = a.error, detail = ('%s: %s'):format(a.ep.url, a.detail) })
+      end
+      if not a.error then
+        in_use = in_use or a.ep.url
+        if #a.models > 0 then
+          usable[#usable + 1] = a
+        end
+      end
     end
-    if not r.models or #r.models == 0 then
-      return messages.notify({ kind = 'no-model', detail = r.detail })
+    if #usable == 0 then
+      return messages.notify(nothing_to_pick(answers))
     end
-    local ep = r.endpoint
-    vim.ui.select(r.models, { prompt = 'note-retrieval: model on ' .. ep.url }, function(id)
-      if not id then
-        return
+    local function choose(a)
+      local ep = a.ep
+      vim.ui.select(a.models, { prompt = 'note-retrieval: model on ' .. ep.url }, function(id)
+        if not id then
+          return
+        end
+        local ok, err = pcall(require('note_retrieval.state').set_model, ep.url, id)
+        local note = ep.model and (' — this endpoint sets model = %q, which comes first'):format(ep.model)
+          or ''
+        if ep.url ~= in_use then
+          note = note .. (' — %s answers first, so this choice counts only when it does not'):format(in_use)
+        end
+        -- An Obsidian index decides the model of a search: say so rather than let the choice mislead.
+        local root = require('note_retrieval.status').current_root(cfg)
+        local loaded = root and require('note_retrieval.index').current(root, cfg)
+        if loaded and loaded.mode == 'obsidian' then
+          note = ("%s — this vault's index was built with %q, and a search uses that one"):format(
+            note,
+            tostring(loaded.manifest.embedding_model)
+          )
+        end
+        if not ok then
+          note = note .. ' — but it could not be remembered: ' .. tostring(err)
+        end
+        vim.notify(('note-retrieval: model on %s: %s%s'):format(ep.url, id, note), vim.log.levels.INFO)
+      end)
+    end
+    if #usable == 1 then
+      return choose(usable[1])
+    end
+    vim.ui.select(usable, {
+      prompt = 'note-retrieval: choose the model of which endpoint?',
+      format_item = function(a)
+        return endpoint_label(a.ep) .. (a.ep.url == in_use and ' (used first)' or '')
+      end,
+    }, function(a)
+      if a then
+        choose(a)
       end
-      local ok, err = pcall(require('note_retrieval.state').set_model, ep.url, id)
-      local note = ep.model and (' — this endpoint sets model = %q, which comes first'):format(ep.model)
-        or ''
-      -- An Obsidian index decides the model of a search: say so rather than let the choice mislead.
-      local root = require('note_retrieval.status').current_root(cfg)
-      local loaded = root and require('note_retrieval.index').current(root, cfg)
-      if loaded and loaded.mode == 'obsidian' then
-        note = ("%s — this vault's index was built with %q, and a search uses that one"):format(
-          note,
-          tostring(loaded.manifest.embedding_model)
-        )
-      end
-      if not ok then
-        note = note .. ' — but it could not be remembered: ' .. tostring(err)
-      end
-      vim.notify(('note-retrieval: model on %s: %s%s'):format(ep.url, id, note), vim.log.levels.INFO)
     end)
   end)
 end
@@ -134,7 +328,9 @@ end
 function M.run(o)
   local sub = o.fargs[1]
   if sub == 'search' then
-    return M.search(table.concat(o.fargs, ' ', 2))
+    -- The query is taken from `args` as typed: `fargs` would split it at every blank, and joining it
+    -- again would collapse the blanks and lose a backslash.
+    return M.search((o.args or ''):match('^%s*%S+%s?(.*)$'))
   elseif sub and vim.tbl_contains(M.SUBCOMMANDS, sub) then
     return M[sub]()
   end

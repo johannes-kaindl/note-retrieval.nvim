@@ -177,8 +177,17 @@ function M.pick(results, opts)
       return ('%.2f  %s%s'):format(hit.score, hit.title, dir ~= '.' and ' — ' .. dir or '')
     end,
   }, function(choice)
-    if choice then
-      vim.cmd.edit(vim.fn.fnameescape(root .. '/' .. choice.path))
+    if not choice then
+      return
+    end
+    local target = root .. '/' .. choice.path
+    -- With the cursor in the panel a plain `:edit` would replace the panel by the note; the panel
+    -- opens a note in the window the person came from. Loaded here: the panel requires this module.
+    local panel = require('note_retrieval.panel')
+    if panel.is_current() then
+      panel.open_file(target)
+    else
+      vim.cmd.edit(vim.fn.fnameescape(target))
     end
   end)
 end

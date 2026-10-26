@@ -513,3 +513,34 @@ T.case('a torn index reload and a note without a row: the warning and the messag
     T.eq(lines[3], search.NO_ROW)
   end)
 end)
+
+T.case(
+  'search.pick with the cursor in the panel opens the note in the previous window, the panel stays',
+  function()
+    with_vault(nil, function(root)
+      config.set({ min_similarity = 0 })
+      local note_win = open_panel(root, 'a.md')
+      vim.api.nvim_set_current_win(panel_win())
+      local saved = vim.ui.select
+      vim.ui.select = function(items, _, on_choice)
+        on_choice(items[1])
+      end
+      local ok, err = pcall(search.pick, { { path = 'sub/e.md', score = 0.9, title = 'e' } }, { root = root })
+      vim.ui.select = saved
+      assert(ok, err)
+      T.eq(vim.api.nvim_get_current_win(), note_win)
+      T.eq(real(vim.api.nvim_buf_get_name(0)), real(root .. '/sub/e.md'))
+      T.ok(panel_win() ~= nil, 'the panel was destroyed')
+      T.eq(vim.api.nvim_win_get_buf(panel_win()), panel_buf())
+      -- counter: from a note window the note opens there, as before
+      vim.api.nvim_set_current_win(note_win)
+      vim.ui.select = function(items, _, on_choice)
+        on_choice(items[1])
+      end
+      pcall(search.pick, { { path = 'b.md', score = 0.9, title = 'b' } }, { root = root })
+      vim.ui.select = saved
+      T.eq(real(vim.api.nvim_buf_get_name(0)), real(root .. '/b.md'))
+      T.ok(panel_win() ~= nil, 'the panel is gone after a pick from a note window')
+    end)
+  end
+)

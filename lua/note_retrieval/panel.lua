@@ -215,11 +215,11 @@ local function note_under_cursor()
   return path
 end
 
-local function open_note()
-  local path = note_under_cursor()
-  if not path then
-    return
-  end
+--- Opens the file `abs` in the window the person came from (or a new one to the left of the panel
+--- when there is none) — never in the panel's own window. Meant to be called with the cursor in
+--- the panel; `<CR>` and the picker of `:NoteRetrieval search` do.
+---@param abs string
+function M.open_file(abs)
   local win, made = previous_win(), false
   if not win then
     -- no note window (the panel is alone, or the others are an explorer, help...): a new one to the
@@ -230,12 +230,25 @@ local function open_note()
     vim.api.nvim_win_set_width(panel_win, M.WIDTH)
   end
   vim.api.nvim_set_current_win(win)
-  local ok, err = pcall(vim.cmd, 'edit ' .. vim.fn.fnameescape(state.root .. '/' .. path))
+  local ok, err = pcall(vim.cmd, 'edit ' .. vim.fn.fnameescape(abs))
   if not ok then
     warn(tostring(err))
     if made and vim.api.nvim_win_is_valid(win) then
       pcall(vim.api.nvim_win_close, win, true)
     end
+  end
+end
+
+--- Whether the current buffer is the panel's.
+---@return boolean
+function M.is_current()
+  return state.buf ~= nil and vim.api.nvim_get_current_buf() == state.buf
+end
+
+local function open_note()
+  local path = note_under_cursor()
+  if path then
+    M.open_file(state.root .. '/' .. path)
   end
 end
 

@@ -96,6 +96,9 @@ local function vault(cfg)
     vim.health.ok('mode: eigen (the index of this plugin)')
   end
   local path = roots.index_path(root, mode, info)
+  -- `load` takes the mode cached for the root; `roots.mode` above read it fresh. Forget the cached
+  -- one so both say the same (the running reindex of an indexer is not held in `index`).
+  index.reset(root)
   local loaded, msg = index.load(root, cfg)
   if not loaded then
     if (vim.uv or vim.loop).fs_stat(path) then
@@ -106,7 +109,7 @@ local function vault(cfg)
     else
       vim.health.warn(msg, {
         mode == 'obsidian' and 'Let the Vault Retrieval plugin build the index in Obsidian.'
-          or 'There is no index for this folder yet; the Vault Retrieval plugin of Obsidian can build one.',
+          or 'There is no index for this folder yet; :NoteRetrieval reindex builds one.',
       })
     end
     return nil

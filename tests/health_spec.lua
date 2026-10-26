@@ -189,3 +189,39 @@ T.case(
     srv.close()
   end
 )
+
+T.case(
+  'health: no index yet in mode eigen names :NoteRetrieval reindex, in mode obsidian it does not',
+  function()
+    V.with_vault(function(root)
+      open_note(root)
+      vim.fn.delete(root .. '/.obsidian/plugins', 'rf') -- no Obsidian plugin here: mode eigen
+      local out = check({ endpoints = V.endpoint(V.dead_url()), index_dir = '_idx' })
+      has(out, 'mode: eigen', 'warn: no index file at', ':NoteRetrieval reindex')
+      T.ok(not out:find('Vault Retrieval plugin of Obsidian can build', 1, true), out)
+    end)
+    V.with_vault(function(root)
+      open_note(root)
+      os.remove(root .. '/_vaultrag/index.bin') -- the plugin folder stays, there is no index file
+      V.put(root .. '/_vaultrag/index.bin', V.index_bytes(V.ROWS)) -- ... until Obsidian writes one
+      local out = check({ endpoints = V.endpoint(V.dead_url()) })
+      has(out, 'mode: obsidian')
+      T.ok(not out:find(':NoteRetrieval reindex', 1, true), out)
+    end)
+  end
+)
+
+T.case(
+  'health: the mode cached for the root is dropped, so the index read is the one of the mode shown',
+  function()
+    V.with_vault(function(root)
+      open_note(root)
+      local index = require('note_retrieval.index')
+      T.ok(index.current(root), 'the Obsidian index loads') -- caches mode obsidian for the root
+      vim.fn.delete(root .. '/.obsidian/plugins', 'rf') -- the vault is mode eigen now
+      local out = check({ endpoints = V.endpoint(V.dead_url()), index_dir = '_idx' })
+      has(out, 'mode: eigen', 'warn: no index file at ' .. root .. '/_idx/index.bin')
+      T.ok(not out:find('ok: index:', 1, true), 'the cached Obsidian index was read:\n' .. out)
+    end)
+  end
+)

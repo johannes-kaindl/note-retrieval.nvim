@@ -5,6 +5,7 @@
 -- to it there at the cursor, `q` closes the panel.
 local config = require('note_retrieval.config')
 local debounce = require('note_retrieval.kit.debounce')
+local edits = require('note_retrieval.kit.edits')
 local index = require('note_retrieval.index')
 local links = require('note_retrieval.links')
 local roots = require('note_retrieval.roots')
@@ -277,12 +278,9 @@ local function insert_link()
   if line ~= '' then
     col = col + #vim.fn.strcharpart(line, vim.fn.charidx(line, col), 1)
   end
-  -- Vim closes an open undo block only in the current buffer: close it there, or the link and the
-  -- last typed change would be undone together (see nvim-plugins AGENTS.md, Gotchas).
-  vim.api.nvim_buf_call(buf, function()
-    vim.cmd('let &g:undolevels = &g:undolevels')
-  end)
-  vim.api.nvim_buf_set_text(buf, row - 1, col, row - 1, col, { text })
+  -- `edits.apply` closes the open undo block in the note buffer first, or the link and the last
+  -- typed change there would be undone together (see nvim-plugins AGENTS.md, Gotchas).
+  edits.apply(buf, row - 1, { line }, { { start = col, stop = col, text = text } })
   vim.api.nvim_win_set_cursor(win, { row, col + #text - 1 })
 end
 

@@ -1,0 +1,6 @@
+.DS_Store
+.remember/
+.claude/
+.superpowers/
+__pycache__/
+doc/tags

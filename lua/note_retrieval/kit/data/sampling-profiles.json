@@ -1,0 +1,694 @@
+{
+  "schema": 1,
+  "source": "code-kit src/ts/pure/sampling-profiles.ts",
+  "familyIds": [
+    "qwen3.8",
+    "qwen3.6",
+    "gemma4",
+    "gpt-oss",
+    "claude"
+  ],
+  "modeIds": [
+    "agent",
+    "structured",
+    "transform",
+    "grounded",
+    "companion",
+    "creative",
+    "complete"
+  ],
+  "backendIds": [
+    "lmstudio",
+    "openwebui",
+    "ollama",
+    "openai",
+    "anthropic",
+    "unknown"
+  ],
+  "thinkingLevels": [
+    "off",
+    "low",
+    "medium",
+    "high"
+  ],
+  "fieldOrder": [
+    "temperature",
+    "top_p",
+    "top_k",
+    "min_p",
+    "presence_penalty",
+    "reasoning_effort",
+    "max_tokens"
+  ],
+  "familyFields": [
+    "top_p",
+    "top_k",
+    "min_p",
+    "presence_penalty"
+  ],
+  "families": {
+    "qwen3.8": {
+      "label": "Qwen 3.8",
+      "thinking": {
+        "top_p": {
+          "value": 0.95,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        },
+        "min_p": {
+          "value": 0,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        }
+      },
+      "noThinking": {
+        "top_p": {
+          "value": 0.8,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        },
+        "min_p": {
+          "value": 0,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        },
+        "presence_penalty": {
+          "value": 1.5,
+          "source": "model card Qwen/Qwen3.8-27B (retrieved 2026-09-20)",
+          "evidence": "unmeasured"
+        }
+      },
+      "effort": {
+        "off": {
+          "value": "none",
+          "source": "llm-setup 2026-09-18, reasoning tokens none 0 / low 226 / medium 251 / xhigh 930",
+          "evidence": "measured"
+        },
+        "low": {
+          "value": "low",
+          "source": "llm-setup 2026-09-18, reasoning tokens none 0 / low 226 / medium 251 / xhigh 930",
+          "evidence": "measured"
+        },
+        "medium": {
+          "value": "medium",
+          "source": "llm-setup 2026-09-18, reasoning tokens none 0 / low 226 / medium 251 / xhigh 930",
+          "evidence": "measured"
+        },
+        "high": {
+          "value": "xhigh",
+          "source": "llm-setup 2026-09-18, reasoning tokens none 0 / low 226 / medium 251 / xhigh 930",
+          "evidence": "measured"
+        }
+      },
+      "canTurnOff": true,
+      "thinkingTemperatureFloor": {
+        "value": 0.6,
+        "source": "Qwen docs quickstart (Qwen3): no greedy decoding while thinking; transferred, supported by harness night run 2026-09-19",
+        "evidence": "unmeasured"
+      },
+      "reserve": {
+        "off": {
+          "value": 0,
+          "source": "no thinking",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": 1024,
+          "source": "llm-benchmark-harness night run 2026-09-19, max reasoning tokens per level, rounded up",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": 2048,
+          "source": "llm-benchmark-harness night run 2026-09-19, max reasoning tokens per level, rounded up",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": 32768,
+          "source": "llm-benchmark-harness night run 2026-09-19, max reasoning tokens per level, rounded up",
+          "evidence": "unmeasured"
+        }
+      }
+    },
+    "qwen3.6": {
+      "label": "Qwen 3.6",
+      "thinking": {
+        "top_p": {
+          "value": 0.95,
+          "source": "LM Studio hub model.yaml (llm-setup)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "LM Studio hub model.yaml (llm-setup)",
+          "evidence": "unmeasured"
+        }
+      },
+      "noThinking": {
+        "top_p": {
+          "value": 0.95,
+          "source": "LM Studio hub model.yaml (llm-setup)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "LM Studio hub model.yaml (llm-setup)",
+          "evidence": "unmeasured"
+        }
+      },
+      "effort": {
+        "off": {
+          "value": "none",
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": "low",
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": "medium",
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": "high",
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        }
+      },
+      "canTurnOff": true,
+      "thinkingTemperatureFloor": {
+        "value": 0.6,
+        "source": "Qwen docs quickstart (Qwen3): no greedy decoding while thinking; transferred, supported by harness night run 2026-09-19",
+        "evidence": "unmeasured"
+      },
+      "reserve": {
+        "off": {
+          "value": 0,
+          "source": "no thinking",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": 1024,
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": 2048,
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": 32768,
+          "source": "transferred from qwen3.8",
+          "evidence": "unmeasured"
+        }
+      }
+    },
+    "gemma4": {
+      "label": "Gemma 4",
+      "thinking": {
+        "top_p": {
+          "value": 0.95,
+          "source": "Gemma 4 model card (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 64,
+          "source": "Gemma 4 model card (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        }
+      },
+      "noThinking": {
+        "top_p": {
+          "value": 0.95,
+          "source": "Gemma 4 model card (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": 64,
+          "source": "Gemma 4 model card (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        }
+      },
+      "effort": {
+        "off": {
+          "value": "none",
+          "source": "llm-configs 2026-09-17, verdigado-think: 583 -> 0 reasoning chars",
+          "evidence": "measured"
+        },
+        "low": {
+          "value": "low",
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": "medium",
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": "high",
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        }
+      },
+      "canTurnOff": true,
+      "reserve": {
+        "off": {
+          "value": 0,
+          "source": "no thinking",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": 1024,
+          "source": "unmeasured, conservative",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": 2048,
+          "source": "unmeasured, conservative",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": 8192,
+          "source": "unmeasured, conservative",
+          "evidence": "unmeasured"
+        }
+      },
+      "byBackend": {
+        "lmstudio": {
+          "canTurnOff": false,
+          "effort": {
+            "off": {
+              "value": "low",
+              "source": "kitcc-w22 2026-10-14, google/gemma-4-e4b on LM Studio (one model size): none ignored, thought in content; low/minimal/medium/high/no field think into reasoning_content",
+              "evidence": "measured"
+            }
+          },
+          "reserve": {
+            "off": {
+              "value": 1024,
+              "source": "thinks at the level of low when off (kitcc-w22 2026-10-14, google/gemma-4-e4b on LM Studio (one model size): none ignored, thought in content; low/minimal/medium/high/no field think into reasoning_content); reserve of low",
+              "evidence": "unmeasured"
+            }
+          }
+        }
+      }
+    },
+    "gpt-oss": {
+      "label": "gpt-oss",
+      "thinking": {
+        "top_p": {
+          "value": 1,
+          "source": "openai/gpt-oss repo (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        }
+      },
+      "noThinking": {
+        "top_p": {
+          "value": 1,
+          "source": "openai/gpt-oss repo (llm-configs 2026-09-17)",
+          "evidence": "unmeasured"
+        }
+      },
+      "effort": {
+        "off": {
+          "value": "minimal",
+          "source": "llm-configs, verdigado-pro: none 187 / low 55 / minimal 41 reasoning chars",
+          "evidence": "measured"
+        },
+        "low": {
+          "value": "low",
+          "source": "llm-configs, verdigado-pro: 55 reasoning chars",
+          "evidence": "measured"
+        },
+        "medium": {
+          "value": "medium",
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": "high",
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        }
+      },
+      "canTurnOff": false,
+      "reserve": {
+        "off": {
+          "value": 256,
+          "source": "llm-configs: max_tokens 40 left content empty, 60 answered; 256 as margin",
+          "evidence": "measured"
+        },
+        "low": {
+          "value": 1024,
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": 2048,
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": 8192,
+          "source": "unmeasured",
+          "evidence": "unmeasured"
+        }
+      }
+    },
+    "claude": {
+      "label": "Claude",
+      "thinking": {},
+      "noThinking": {},
+      "effort": {
+        "off": {
+          "value": "low",
+          "source": "Anthropic docs (claude-api skill 2026-10-06): thinking {type: disabled} returns 400 on Opus 5.5 and Sonnet 5.5, thinking is always on on Fable 5/5.1, so off is the lowest effort",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": "low",
+          "source": "Anthropic docs (claude-api skill 2026-10-06): output_config.effort low/medium/high/xhigh/max; not called by us",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": "medium",
+          "source": "Anthropic docs (claude-api skill 2026-10-06): output_config.effort low/medium/high/xhigh/max; not called by us",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": "high",
+          "source": "Anthropic docs (claude-api skill 2026-10-06): output_config.effort low/medium/high/xhigh/max; not called by us",
+          "evidence": "unmeasured"
+        }
+      },
+      "canTurnOff": false,
+      "reserve": {
+        "off": {
+          "value": 2048,
+          "source": "Anthropic docs (claude-api skill 2026-10-06): max_tokens includes the adaptive thinking, default ~16000; conservative, unmeasured",
+          "evidence": "unmeasured"
+        },
+        "low": {
+          "value": 2048,
+          "source": "Anthropic docs (claude-api skill 2026-10-06): max_tokens includes the adaptive thinking, default ~16000; conservative, unmeasured",
+          "evidence": "unmeasured"
+        },
+        "medium": {
+          "value": 4096,
+          "source": "Anthropic docs (claude-api skill 2026-10-06): max_tokens includes the adaptive thinking, default ~16000; conservative, unmeasured",
+          "evidence": "unmeasured"
+        },
+        "high": {
+          "value": 16000,
+          "source": "Anthropic docs (claude-api skill 2026-10-06): max_tokens includes the adaptive thinking, default ~16000; conservative, unmeasured",
+          "evidence": "unmeasured"
+        }
+      },
+      "unsupportedFields": {
+        "temperature": {
+          "value": "HTTP 400 on Claude 4.7 and newer",
+          "source": "Anthropic docs (claude-api skill 2026-10-06; OpenAI compatibility page 2026-10-16): temperature, top_p, top_k removed on Claude Fable 5/5.1, Opus 5.5/5/4.8/4.7, non-default values refused on Sonnet 5.5 and Haiku 5.5; compatibility layer: temperature below 1 and top_p other than 0.99 return 400 on Claude 4.7 and newer",
+          "evidence": "unmeasured"
+        },
+        "top_p": {
+          "value": "HTTP 400 on Claude 4.7 and newer",
+          "source": "Anthropic docs (claude-api skill 2026-10-06; OpenAI compatibility page 2026-10-16): temperature, top_p, top_k removed on Claude Fable 5/5.1, Opus 5.5/5/4.8/4.7, non-default values refused on Sonnet 5.5 and Haiku 5.5; compatibility layer: temperature below 1 and top_p other than 0.99 return 400 on Claude 4.7 and newer",
+          "evidence": "unmeasured"
+        },
+        "top_k": {
+          "value": "HTTP 400 on Claude 4.7 and newer",
+          "source": "Anthropic docs (claude-api skill 2026-10-06; OpenAI compatibility page 2026-10-16): temperature, top_p, top_k removed on Claude Fable 5/5.1, Opus 5.5/5/4.8/4.7, non-default values refused on Sonnet 5.5 and Haiku 5.5; compatibility layer: temperature below 1 and top_p other than 0.99 return 400 on Claude 4.7 and newer",
+          "evidence": "unmeasured"
+        },
+        "min_p": {
+          "value": "not a Claude parameter",
+          "source": "Anthropic docs (claude-api skill 2026-10-06; OpenAI compatibility page 2026-10-16): temperature, top_p, top_k removed on Claude Fable 5/5.1, Opus 5.5/5/4.8/4.7, non-default values refused on Sonnet 5.5 and Haiku 5.5; compatibility layer: temperature below 1 and top_p other than 0.99 return 400 on Claude 4.7 and newer",
+          "evidence": "unmeasured"
+        },
+        "presence_penalty": {
+          "value": "not a Claude parameter (ignored by the compatibility layer)",
+          "source": "Anthropic docs (claude-api skill 2026-10-06; OpenAI compatibility page 2026-10-16): temperature, top_p, top_k removed on Claude Fable 5/5.1, Opus 5.5/5/4.8/4.7, non-default values refused on Sonnet 5.5 and Haiku 5.5; compatibility layer: temperature below 1 and top_p other than 0.99 return 400 on Claude 4.7 and newer",
+          "evidence": "unmeasured"
+        }
+      }
+    }
+  },
+  "modes": {
+    "agent": {
+      "temperature": {
+        "value": 0.2,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "low"
+    },
+    "structured": {
+      "temperature": {
+        "value": 0.1,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "off"
+    },
+    "transform": {
+      "temperature": {
+        "value": 0.2,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "off"
+    },
+    "grounded": {
+      "temperature": {
+        "value": 0.4,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "off"
+    },
+    "companion": {
+      "temperature": {
+        "value": 0.7,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "off"
+    },
+    "creative": {
+      "temperature": {
+        "value": 0.7,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "medium"
+    },
+    "complete": {
+      "temperature": {
+        "value": 0.2,
+        "source": "llm-configs plugin-parameter-empfehlungen (derived, not measured)",
+        "evidence": "unmeasured"
+      },
+      "thinking": "off"
+    }
+  },
+  "backends": {
+    "lmstudio": {
+      "label": "LM Studio",
+      "fields": {
+        "temperature": "effective",
+        "top_p": "effective",
+        "top_k": "effective",
+        "min_p": "effective",
+        "presence_penalty": "ignored",
+        "reasoning_effort": "effective",
+        "max_tokens": "effective"
+      },
+      "source": "llm-setup setup.md § Sampling, § Penalty-Felder, § top_k/top_p/min_p (6f75737, qwen3.8 only)"
+    },
+    "openwebui": {
+      "label": "Open WebUI",
+      "fields": {
+        "temperature": "effective",
+        "top_p": "effective",
+        "top_k": "accepted",
+        "min_p": "accepted",
+        "presence_penalty": "accepted",
+        "reasoning_effort": "effective",
+        "max_tokens": "effective"
+      },
+      "source": "llm-configs openwebui-api.md § Welche Parameter ankommen (Open WebUI 0.11.3, 2026-09-17)"
+    },
+    "anthropic": {
+      "label": "Anthropic",
+      "fields": {
+        "temperature": "unsupported",
+        "top_p": "unsupported",
+        "top_k": "unsupported",
+        "min_p": "unsupported",
+        "presence_penalty": "unsupported",
+        "reasoning_effort": "accepted",
+        "max_tokens": "accepted"
+      },
+      "source": "Anthropic docs (claude-api skill 2026-10-06): no sampling fields (400 on Claude 4.7 and newer), depth through output_config.effort, max_tokens required and includes the thinking; not called by us",
+      "effortParam": "effort",
+      "effortValues": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    "ollama": {
+      "label": "Ollama",
+      "fields": {
+        "temperature": "accepted",
+        "top_p": "accepted",
+        "top_k": "unsupported",
+        "min_p": "unsupported",
+        "presence_penalty": "unsupported",
+        "reasoning_effort": "accepted",
+        "max_tokens": "accepted"
+      },
+      "source": "unmeasured: standard fields only"
+    },
+    "openai": {
+      "label": "OpenAI",
+      "fields": {
+        "temperature": "accepted",
+        "top_p": "accepted",
+        "top_k": "unsupported",
+        "min_p": "unsupported",
+        "presence_penalty": "unsupported",
+        "reasoning_effort": "accepted",
+        "max_tokens": "accepted"
+      },
+      "source": "unmeasured: standard fields only"
+    },
+    "unknown": {
+      "label": "unknown",
+      "fields": {
+        "temperature": "accepted",
+        "top_p": "accepted",
+        "top_k": "unsupported",
+        "min_p": "unsupported",
+        "presence_penalty": "unsupported",
+        "reasoning_effort": "accepted",
+        "max_tokens": "accepted"
+      },
+      "source": "unknown backend: standard fields only"
+    }
+  },
+  "familyPatterns": [
+    {
+      "source": "qwen3\\.8",
+      "flags": "i",
+      "family": "qwen3.8"
+    },
+    {
+      "source": "qwen3\\.6",
+      "flags": "i",
+      "family": "qwen3.6"
+    },
+    {
+      "source": "gemma[-_]?4",
+      "flags": "i",
+      "family": "gemma4"
+    },
+    {
+      "source": "gpt-oss",
+      "flags": "i",
+      "family": "gpt-oss"
+    },
+    {
+      "source": "claude-fable",
+      "flags": "i",
+      "family": "claude"
+    },
+    {
+      "source": "claude-mythos",
+      "flags": "i",
+      "family": "claude"
+    },
+    {
+      "source": "claude-opus-5",
+      "flags": "i",
+      "family": "claude"
+    },
+    {
+      "source": "claude-opus-4-[78]",
+      "flags": "i",
+      "family": "claude"
+    },
+    {
+      "source": "claude-sonnet-5",
+      "flags": "i",
+      "family": "claude"
+    },
+    {
+      "source": "claude-haiku-5",
+      "flags": "i",
+      "family": "claude"
+    }
+  ],
+  "genericEffort": {
+    "off": "none",
+    "low": "low",
+    "medium": "medium",
+    "high": "high"
+  },
+  "ranges": {
+    "temperature": {
+      "min": 0,
+      "max": 2,
+      "int": false
+    },
+    "top_p": {
+      "min": 0.1,
+      "max": 1,
+      "int": false
+    },
+    "top_k": {
+      "min": 1,
+      "max": 9007199254740991,
+      "int": true
+    },
+    "min_p": {
+      "min": 0,
+      "max": 1,
+      "int": false
+    },
+    "presence_penalty": {
+      "min": 0,
+      "max": 2,
+      "int": false
+    },
+    "max_tokens": {
+      "min": 1,
+      "max": 9007199254740991,
+      "int": true
+    }
+  },
+  "effortValues": [
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh"
+  ]
+}

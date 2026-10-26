@@ -80,7 +80,7 @@ local function locate(root, cfg)
   if entry then
     return entry, root
   end
-  cfg = cfg or config.resolve().cfg
+  cfg = cfg or (config.resolve())
   local mode, info = roots.mode(root, cfg)
   if not mode then
     return nil, info
@@ -90,7 +90,7 @@ local function locate(root, cfg)
   return entry, root
 end
 
---- Reads the index file of `root` (`cfg` as `config.resolve().cfg` gives it, default: the options
+--- Reads the index file of `root` (`cfg` as `config.resolve()` gives it, default: the options
 --- in effect) and returns `{ index, manifest, paths, stamps, stat, path, mode, built_ms }`:
 --- `index` is `vectors.parse`'s index (with `index.manifest` set), `paths` its row paths in row
 --- order, `stamps` the `{ mtime, size }` list row for row or nil (an index without usable

@@ -251,6 +251,23 @@ T.case('load and current: a header without scale or index_dim is a reason, not a
   end)
 end)
 
+T.case('current and load without a cfg argument use the options in effect', function()
+  with_vault(GOOD, nil, function(root)
+    local loaded = assert(index.current(root))
+    T.eq(loaded.index.count, 3)
+    index.reset()
+    T.eq(assert(index.load(root)).mode, 'obsidian')
+  end)
+  -- the options in effect decide the own index folder: without the plugin the vault is "eigen"
+  with_vault(GOOD, nil, function(root)
+    vim.fn.delete(root .. '/.obsidian/plugins', 'rf')
+    require('note_retrieval.config').set({ index_dir = '_vaultrag' })
+    local loaded = assert(index.current(root))
+    T.eq(loaded.mode, 'eigen')
+    require('note_retrieval.config').set(nil)
+  end)
+end)
+
 T.case('stale_mark: the root is required, there is no last-served fallback', function()
   with_vault(container({ 'n.md' }, { ROWS[1] }), { ['n.md'] = BUILT + 5000 }, function(root)
     index.current(root, {})

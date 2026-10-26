@@ -1,0 +1,37 @@
+*note-retrieval.txt*  Related notes and semantic search over a Markdown vault
+
+This manual is a stub: the commands and mappings arrive with the plugin's features; the options are final for 0.1.0.
+
+==============================================================================
+OPTIONS                                                  *note-retrieval-options*
+
+Set them in `vim.g.note_retrieval` or pass them to `require('note_retrieval').setup()`; `setup()` wins field by field. Nothing needs `setup()`. A value that fails its check is reported (`:checkhealth note_retrieval`) and keeps its default.
+
+*note-retrieval-option-embedding_model*
+  string, default nil (chosen per server). The model that embeds notes and queries.
+
+*note-retrieval-option-endpoints*
+  list of tables, default nil (Ollama, then LM Studio). Embedding servers in priority order; invalid endpoints stop a run.
+
+*note-retrieval-option-hide_linked*
+  boolean, default true. Leave out notes the current note already links to.
+
+*note-retrieval-option-index_on_save*
+  boolean, default true. Update the plugin's own index when a note is saved.
+
+*note-retrieval-option-k*
+  integer, default 20. How many related notes to show.
+
+*note-retrieval-option-link_format*
+  "wiki" or "md", default "wiki". How an inserted link is written.
+
+*note-retrieval-option-min_similarity*
+  number from -1 to 1, default 0.3. Cosine similarity below which a note is not related.
+
+*note-retrieval-option-roots*
+  list of strings, default nil. Directories holding the notes.
+
+*note-retrieval-option-timeout_ms*
+  integer, default 30000. How long one embedding request may take.
+
+ vim:tw=78:ts=8:ft=help:norl:

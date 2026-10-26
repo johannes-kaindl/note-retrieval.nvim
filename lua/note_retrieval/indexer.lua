@@ -9,6 +9,7 @@
 -- kinds are: locked, not-eigen, options-changed, model-mismatch, dim-mismatch, shrink, not-ready,
 -- unreadable, changed, backup-failed, write-failed, running, no-notes, incomplete, failed, no-indexer.
 local config = require('note_retrieval.config')
+local debounce = require('note_retrieval.kit.debounce')
 local embedder_lib = require('note_retrieval.embedder')
 local guard = require('note_retrieval.kit.index_guard')
 local live_indexer = require('note_retrieval.kit.live_indexer')
@@ -417,6 +418,7 @@ function M.for_root(root, opts)
   ix.live = new_live(ix, model, dim)
   entries[key] = ix
   adopt(ix)
+  M.attach_on_save(key)
   return ix
 end
 
@@ -480,6 +482,12 @@ end
 
 -- The refusal when a run is going: a reindex and an update of the index never run together.
 local function running_failure(self)
+  if self.run.kind == 'save' then
+    return failure(
+      'running',
+      'the index is being updated after a save (:NoteRetrieval status shows it); try again in a moment'
+    )
+  end
   if self.run.kind == 'sync' then
     return failure(
       'running',
@@ -820,11 +828,302 @@ function M.sync(root, cb)
   ix:sync_vault(cb)
 end
 
+-- Update on save ---------------------------------------------------------------------------------
+
+--- How long saves stay quiet before they are written, in milliseconds (read when the debouncer is made).
+M.SAVE_DEBOUNCE_MS = 1000
+
+local SAVE_GROUP = 'NoteRetrievalSave'
+
+local attached = {} -- the roots whose saves are heard: { [root] = true }
+local pending = {} -- the notes saved and not yet written: { [root] = { [relative path] = true } }
+local reported = {} -- the refusals shown since the last success: { [root] = { [kind] = true } }
+local hinted = {} -- the roots told once that a save finds no indexer: { [root] = true }
+local save_group
+local debouncer, debouncer_ms
+
+-- Forgets a root for saves; the group goes when no root is left. An idle indexer is dropped (the
+-- next `for_root` starts from the disk and the options of the moment).
+local function detach(root)
+  attached[root] = nil
+  pending[root] = nil
+  reported[root] = nil
+  local ix = entries[root]
+  if ix and not ix.run.running then
+    entries[root] = nil
+  end
+  if save_group and next(attached) == nil then
+    pcall(vim.api.nvim_del_augroup_by_id, save_group)
+    save_group = nil
+    if debouncer then
+      debouncer.cancel()
+    end
+  end
+end
+
+-- A refusal is shown once per kind until the next success.
+local function report_once(root, err)
+  local kind = type(err) == 'table' and err.kind or 'failed'
+  reported[root] = reported[root] or {}
+  if reported[root][kind] then
+    return
+  end
+  reported[root][kind] = true
+  vim.notify('note-retrieval: ' .. tostring(type(err) == 'table' and err.message or err), vim.log.levels.WARN)
+end
+
+-- Writes the notes `rels` of the indexer after a save, in one sequence: read the disk state, apply
+-- the updates, persist - nothing reads the disk between an update and its persist. A `changed`
+-- refusal repeats the sequence once.
+local function save_batch(ix, rels)
+  local root = ix.root
+  local function done_all(err, partial)
+    ix.run = { running = false }
+    if err then
+      report_once(root, err)
+    else
+      reported[root] = nil
+      if partial then
+        report_once(root, partial)
+      end
+    end
+    local waiting = ix.save_waiters
+    ix.save_waiters = nil
+    for _, cb in ipairs(waiting or {}) do
+      cb()
+    end
+  end
+  local function attempt(retried)
+    ix:sync()
+    if not ix.live:is_ready() then
+      return done_all(refusal_failure(ix, { kind = 'not-ready' }))
+    end
+    local run = { running = true, kind = 'save', done = 0, indexed = 0, total = #rels, started = now_ms() }
+    ix.run = run
+    local updated, failed, i = 0, 0, 0
+    local function persist_step()
+      -- Persisting is synchronous: from here on nothing runs in between.
+      ix.run = { running = false }
+      if updated == 0 then
+        return done_all(
+          failed > 0
+              and failure(
+                'failed',
+                ('%d saved note(s) could not be embedded (is the server still up?); :NoteRetrieval update tries again'):format(
+                  failed
+                )
+              )
+            or nil
+        )
+      end
+      local ok, res, why = pcall(ix.persist, ix, 'live')
+      if not ok then
+        res, why = nil, raised_failure(res)
+      end
+      if res then
+        return done_all(
+          nil,
+          failed > 0
+              and failure(
+                'failed',
+                ('%d saved note(s) could not be embedded; :NoteRetrieval update tries again'):format(failed)
+              )
+            or nil
+        )
+      end
+      -- Memory holds a state that was refused: the disk is the truth again.
+      ix.seen = nil
+      adopt(ix)
+      if why.kind == 'changed' and not retried then
+        return attempt(true)
+      end
+      done_all(why)
+    end
+    local function step()
+      i = i + 1
+      run.done = i - 1
+      if i > #rels then
+        return persist_step()
+      end
+      local rel = rels[i]
+      local text = read_note(root, rel)
+      if not text then
+        return step() -- gone: :NoteRetrieval update finds it
+      end
+      local stamp = stamp_note(root, rel) -- after the read: an old stamp never sits on a new vector
+      local started, err = pcall(ix.live.update, ix.live, rel, text, stamp, function(result)
+        on_main_loop(function()
+          if result then
+            updated = updated + 1
+            run.indexed = updated
+          else
+            failed = failed + 1
+          end
+          step()
+        end)
+      end)
+      if not started then
+        failed = failed + 1
+        report_once(root, failure('failed', 'a saved note could not be indexed: ' .. tostring(err)))
+        step()
+      end
+    end
+    step()
+  end
+  attempt(false)
+end
+
+local function sorted_keys(set)
+  local keys = vim.tbl_keys(set)
+  table.sort(keys)
+  return keys
+end
+
+-- The debouncer's run: every root with saved notes gets one batch, unless a reindex, an update or
+-- another batch is running there; then the notes wait for the next window.
+local function run_batches()
+  local again = false
+  for _, root in ipairs(sorted_keys(pending)) do
+    local ix = entries[root]
+    local set = pending[root]
+    if not ix then
+      pending[root] = nil
+    elseif ix.run.running then
+      again = true
+    else
+      pending[root] = nil
+      local mode = roots.mode(root, ix.cfg)
+      if mode == 'eigen' then
+        save_batch(ix, sorted_keys(set))
+      elseif mode ~= nil then
+        detach(root)
+      end
+    end
+  end
+  if again then
+    debouncer.call()
+  end
+end
+
+local function get_debouncer()
+  if not debouncer or debouncer_ms ~= M.SAVE_DEBOUNCE_MS then
+    if debouncer then
+      debouncer.cancel()
+    end
+    debouncer, debouncer_ms = debounce.new(M.SAVE_DEBOUNCE_MS, run_batches), M.SAVE_DEBOUNCE_MS
+  end
+  return debouncer
+end
+
+local function root_of(file)
+  local best
+  for root in pairs(attached) do
+    if vim.startswith(file, root .. '/') and (not best or #root > #best) then
+      best = root
+    end
+  end
+  return best
+end
+
+-- Whether a saved note is one the index holds: relative path of a Markdown note, no dot parts,
+-- not in an excluded folder or the index folder.
+local function is_note(rel, info)
+  if not rel:match('%.md$') or rel:match('^%.') or rel:match('/%.') then
+    return false
+  end
+  for _, prefix in ipairs(info.exclude or {}) do
+    if vim.startswith(rel, prefix) then
+      return false
+    end
+  end
+  return not (info.index_dir and vim.startswith(rel, (info.index_dir:gsub('/+$', '')) .. '/'))
+end
+
+local function on_write(ev)
+  local file = vim.fs.normalize(vim.api.nvim_buf_get_name(ev.buf))
+  local root = root_of(file)
+  if not root then
+    local real = uv.fs_realpath(file)
+    file = real and vim.fs.normalize(real) or file
+    root = root_of(file)
+  end
+  if not root then
+    return
+  end
+  local ix = entries[root]
+  local fresh = config.resolve()
+  -- Read fresh at write time: a vault that became the Obsidian plugin's is not ours any more.
+  local mode, info = roots.mode(root, ix and ix.cfg or fresh)
+  if mode ~= 'eigen' then
+    if mode ~= nil then
+      detach(root)
+    end
+    return
+  end
+  if not fresh.index_on_save then
+    return
+  end
+  local rel = file:sub(#root + 2)
+  if not is_note(rel, info) then
+    return
+  end
+  if not ix then
+    -- No model is chosen in this session yet; a save never asks for one.
+    if not hinted[root] then
+      hinted[root] = true
+      vim.notify(
+        'note-retrieval: saved notes are not indexed yet in this session; run :NoteRetrieval update once to start',
+        vim.log.levels.INFO
+      )
+    end
+    return
+  end
+  pending[root] = pending[root] or {}
+  pending[root][rel] = true
+  get_debouncer().call()
+end
+
+--- Starts listening for saved notes of `root` (a vault whose mode is 'eigen'; the callers check):
+--- one `BufWritePost` autocmd for all roots, installed on the first call, idempotent. A saved note
+--- is written after `M.SAVE_DEBOUNCE_MS` of quiet: the notes of all saves in the window go in one
+--- sequence (`sync`, `update` of each, one `persist`). The mode is read again at every save; when
+--- the vault is not ours any more the root is dropped and the group goes with the last root.
+--- Needs an indexer (`for_root`) to write; a save without one only hints once per root.
+function M.attach_on_save(root)
+  attached[normalise(root)] = true
+  if not save_group then
+    save_group = vim.api.nvim_create_augroup(SAVE_GROUP, { clear = true })
+    vim.api.nvim_create_autocmd('BufWritePost', {
+      group = save_group,
+      pattern = '*.md',
+      desc = 'note-retrieval: update the own index after a save',
+      callback = on_write,
+    })
+  end
+end
+
+--- Writes the notes saved so far in `root` now, then calls `cb()` when no batch of it is running
+--- any more (at once when there is nothing to wait for). `:NoteRetrieval update` starts with it, so
+--- it never runs between unsaved changes and their persist.
+function M.flush_saves(root, cb)
+  local key = normalise(root)
+  if debouncer and pending[key] then
+    debouncer.flush()
+  end
+  local ix = entries[key]
+  if ix and ix.run.running and ix.run.kind == 'save' then
+    ix.save_waiters = ix.save_waiters or {}
+    table.insert(ix.save_waiters, cb)
+    return
+  end
+  cb()
+end
+
 --- Asks a running reindex to stop at the next group of notes; what it reached is written, nothing
 --- else is lost. Returns true when one was running.
 function M.stop(root)
   local ix = entries[normalise(root)]
-  if not ix or not ix.run.running or ix.run.kind == 'sync' then
+  if not ix or not ix.run.running or ix.run.kind == 'sync' or ix.run.kind == 'save' then
     return false
   end
   ix.run.stopping = true
@@ -879,7 +1178,8 @@ function M.statusline(root)
     local ix = entries[key]
     if ix and ix.run.running then
       return ('%s %d/%d'):format(
-        ix.run.stopping and 'stopping' or (ix.run.kind == 'sync' and 'updating' or 'indexing'),
+        ix.run.stopping and 'stopping'
+          or (ix.run.kind == 'sync' and 'updating' or (ix.run.kind == 'save' and 'saving' or 'indexing')),
         ix.run.done or 0,
         ix.run.total or 0
       )
@@ -893,16 +1193,27 @@ end
 --- Returns the roots that were kept for that reason.
 function M.reset(root)
   local kept = {}
-  local keys = root and { normalise(root) } or vim.tbl_keys(entries)
-  table.sort(keys)
+  local keys = {}
+  if root then
+    keys[1] = normalise(root)
+  else
+    local set = {}
+    for key in pairs(entries) do
+      set[key] = true
+    end
+    for key in pairs(attached) do
+      set[key] = true
+    end
+    keys = sorted_keys(set)
+  end
   for _, key in ipairs(keys) do
     local ix = entries[key]
-    if ix then
-      if ix.run.running then
-        kept[#kept + 1] = key
-      else
-        entries[key] = nil
-      end
+    if ix and ix.run.running then
+      kept[#kept + 1] = key
+    else
+      entries[key] = nil
+      hinted[key] = nil
+      detach(key)
     end
   end
   return kept

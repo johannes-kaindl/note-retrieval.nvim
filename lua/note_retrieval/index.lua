@@ -87,6 +87,10 @@ local function locate(root, cfg)
   end
   entry = { path = roots.index_path(root, mode, info), mode = mode, info = info }
   state[root] = entry
+  if mode == 'eigen' then
+    -- Lazy: loading the plugin loads no module; saves of an own index are heard from the first use.
+    require('note_retrieval.indexer').attach_on_save(root)
+  end
   return entry, root
 end
 

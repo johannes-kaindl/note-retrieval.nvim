@@ -163,10 +163,13 @@ function M.reindex()
   local running = indexer.status(root)
   if running.running then
     return vim.notify(
-      running.kind == 'sync'
-          and ('note-retrieval: an update of %s is running (:NoteRetrieval status shows it); reindex when it is done'):format(
+      running.kind == 'save'
+          and ('note-retrieval: the index of %s is being updated after a save; reindex when it is done'):format(
             root
           )
+        or running.kind == 'sync' and ('note-retrieval: an update of %s is running (:NoteRetrieval status shows it); reindex when it is done'):format(
+          root
+        )
         or ('note-retrieval: a reindex of %s is already running (:NoteRetrieval status shows it, :NoteRetrieval stop ends it)'):format(
           root
         ),
@@ -229,38 +232,44 @@ function M.update()
     )
   end
   local indexer = require('note_retrieval.indexer')
-  local running = indexer.status(root)
-  if running.running then
-    return show_writer_error({
-      kind = 'running',
-      message = running.kind == 'sync'
-          and ('an update of %s is already running (:NoteRetrieval status shows it)'):format(root)
-        or ('a reindex of %s is running; update when it is done'):format(root),
-    })
-  end
-  require('note_retrieval.embedder').resolve(cfg, nil, function(resolved, err)
-    if not resolved then
-      return messages.notify(err, { mode = mode })
+  -- Notes saved a moment ago are written first: an update never runs between unsaved changes and their persist.
+  indexer.flush_saves(root, function()
+    local running = indexer.status(root)
+    if running.running then
+      return show_writer_error({
+        kind = 'running',
+        message = running.kind == 'save'
+            and ('the index of %s is being updated after a save; try again in a moment'):format(root)
+          or running.kind == 'sync' and ('an update of %s is already running (:NoteRetrieval status shows it)'):format(
+            root
+          )
+          or ('a reindex of %s is running; update when it is done'):format(root),
+      })
     end
-    local ix, msg = indexer.for_root(root, { resolved = resolved, dim = resolved.dim, cfg = cfg })
-    if not ix then
-      return vim.notify('note-retrieval: ' .. tostring(msg), vim.log.levels.WARN)
-    end
-    vim.notify(
-      ('note-retrieval: updating the index of %s with the model %s (:NoteRetrieval status shows the progress)'):format(
-        root,
-        resolved.model
-      ),
-      vim.log.levels.INFO
-    )
-    indexer.sync(root, function(result, rerr)
-      if not result then
-        return show_writer_error(rerr)
+    require('note_retrieval.embedder').resolve(cfg, nil, function(resolved, err)
+      if not resolved then
+        return messages.notify(err, { mode = mode })
+      end
+      local ix, msg = indexer.for_root(root, { resolved = resolved, dim = resolved.dim, cfg = cfg })
+      if not ix then
+        return vim.notify('note-retrieval: ' .. tostring(msg), vim.log.levels.WARN)
       end
       vim.notify(
-        'note-retrieval: ' .. update_sentence(root, result),
-        #result.failed > 0 and vim.log.levels.WARN or vim.log.levels.INFO
+        ('note-retrieval: updating the index of %s with the model %s (:NoteRetrieval status shows the progress)'):format(
+          root,
+          resolved.model
+        ),
+        vim.log.levels.INFO
       )
+      indexer.sync(root, function(result, rerr)
+        if not result then
+          return show_writer_error(rerr)
+        end
+        vim.notify(
+          'note-retrieval: ' .. update_sentence(root, result),
+          #result.failed > 0 and vim.log.levels.WARN or vim.log.levels.INFO
+        )
+      end)
     end)
   end)
 end

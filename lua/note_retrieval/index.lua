@@ -95,7 +95,7 @@ end
 --- `index` is `vectors.parse`'s index (with `index.manifest` set), `paths` its row paths in row
 --- order, `stamps` the `{ mtime, size }` list row for row or nil (an index without usable
 --- stamps), `stat` the file's `uv.fs_stat` taken before the read, `built_ms` the header's
---- `built_at` in milliseconds (nil when it is missing). Without a result: `nil, message`, the
+--- `built_at` in milliseconds (nil when it is missing), `mode` and `info` what `roots.mode` resolved. Without a result: `nil, message`, the
 --- message in words ("the index is being written or is damaged"). It only reads, and it does not
 --- touch what `current` holds.
 function M.load(root, cfg)
@@ -133,6 +133,7 @@ function M.load(root, cfg)
     stat = stat,
     path = entry.path,
     mode = entry.mode,
+    info = entry.info,
     built_ms = iso_ms(decoded.manifest.built_at),
   }
 end

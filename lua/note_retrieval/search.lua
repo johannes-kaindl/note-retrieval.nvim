@@ -24,12 +24,11 @@ local function find_root(start, opts)
   return roots.find_root(start, (config.resolve()))
 end
 
--- The vault's own exclude prefixes (data.json in mode obsidian, the option in mode eigen) plus
--- the ones the caller passes; the note itself is never among them.
-local function excludes(root, opts)
-  local mode, info = roots.mode(root, (config.resolve()))
+-- The vault's own exclude prefixes (what the index resolved for its root: data.json in mode
+-- obsidian, the option in mode eigen) plus the ones the caller passes.
+local function excludes(loaded, opts)
   local out = {}
-  for _, p in ipairs(mode and info.exclude or {}) do
+  for _, p in ipairs(loaded.info and loaded.info.exclude or {}) do
     out[#out + 1] = p
   end
   for _, p in ipairs(opts.exclude or {}) do
@@ -43,35 +42,42 @@ local function title_of(path)
   return (vim.fs.basename(path):gsub('%.md$', ''))
 end
 
--- The `k` best hits whose file exists. `rank(n)` returns the best `n` hits; hits that are gone
--- from disk are dropped (stat on the hits only, never on the whole index), and more are asked for
--- until `k` live ones are found or the index has no more.
-local function live_hits(root, k, rank)
-  local want = k * 2
-  while true do
-    local hits = rank(want)
-    local out = {}
-    for _, hit in ipairs(hits) do
-      if uv.fs_stat(root .. '/' .. hit.path) then
-        out[#out + 1] = { path = hit.path, score = hit.score, title = title_of(hit.path) }
-        if #out == k then
-          return out
-        end
-      end
-    end
-    if #hits < want then
-      return out
-    end
-    want = want * 2
+-- How many results `k` asks for: a whole number, 0 for anything that is not a number of at least 1.
+local function count_of(k)
+  if type(k) ~= 'number' or k ~= k or k < 1 then
+    return 0
   end
+  return math.floor(k)
 end
 
-local function rank_opts(root, opts, n)
+-- The ranking of the whole index (`rank()` returns every hit, best first) cut to the first `k`
+-- whose file exists: the hits are stat-ed from the top and only until `k` are found, so the
+-- cost is one rank plus a few stats, never a stat of the whole index. Rows whose file is gone
+-- are dropped.
+local function live_hits(root, k, rank)
+  k = count_of(k)
+  if k == 0 then
+    return {}
+  end
+  local out = {}
+  for _, hit in ipairs(rank()) do
+    if uv.fs_stat(root .. '/' .. hit.path) then
+      out[#out + 1] = { path = hit.path, score = hit.score, title = title_of(hit.path) }
+      if #out == k then
+        break
+      end
+    end
+  end
+  return out
+end
+
+-- The options of the kit's rank: every hit (the cut to `k` is `live_hits`' job).
+local function rank_opts(loaded, opts)
   local cfg = (config.resolve())
   return {
-    k = n,
+    k = loaded.index.count,
     min_sim = opts.min_similarity or cfg.min_similarity,
-    exclude = excludes(root, opts),
+    exclude = excludes(loaded, opts),
   }
 end
 
@@ -101,8 +107,8 @@ function M.related(path, opts)
     return nil, M.NO_ROW
   end
   local k = opts.k or (config.resolve()).k
-  return live_hits(root, k, function(n)
-    return vectors.related(loaded.index, rel, rank_opts(root, opts, n))
+  return live_hits(root, k, function()
+    return vectors.related(loaded.index, rel, rank_opts(loaded, opts))
   end),
     warning
 end
@@ -112,10 +118,11 @@ end
 --- to the vault of the working directory). Calls `cb(results)` or `cb(nil, err)`, `err` a table
 --- `{ kind, … }`: the embedder's (`model-mismatch` when the index of the Obsidian plugin was built
 --- with a model the server does not serve — search is off then, `related` still works) or
---- `{ kind = 'no-index', detail }`.
+--- `{ kind = 'no-index', detail }`. As for `related`, a second argument on success is the warning
+--- about the index (a torn reload; the index loaded earlier answered).
 ---@param query string
 ---@param opts? { k?: integer, min_similarity?: number, exclude?: string[], root?: string }
----@param cb fun(results?: table[], err?: table)
+---@param cb fun(results?: table[], err_or_warning?: table|string)
 function M.search(query, opts, cb)
   opts = opts or {}
   local cfg = (config.resolve())
@@ -124,6 +131,7 @@ function M.search(query, opts, cb)
     return cb(nil, { kind = 'no-index', detail = why })
   end
   local loaded, msg = index.current(root)
+  local warning = loaded and msg
   if not loaded then
     return cb(nil, { kind = 'no-index', detail = msg })
   end
@@ -137,9 +145,12 @@ function M.search(query, opts, cb)
       if not vector then
         return cb(nil, qerr)
       end
-      cb(live_hits(root, opts.k or cfg.k, function(n)
-        return vectors.search(loaded.index, vector, rank_opts(root, opts, n))
-      end))
+      cb(
+        live_hits(root, opts.k or cfg.k, function()
+          return vectors.search(loaded.index, vector, rank_opts(loaded, opts))
+        end),
+        warning
+      )
     end)
   end)
 end

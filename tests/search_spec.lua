@@ -43,7 +43,7 @@ local function put(path, bytes)
   f:close()
 end
 
--- Rows in index order. `a` is the note the related tests start from; `b` and `d` tie for the
+-- Rows in index order (a file name starting with `orphan` or `ghost` gets no file). `a` is the note the related tests start from; `b` and `d` tie for the
 -- closest live note; the three orphans are closer still but have no file; `Templates/t.md` is
 -- excluded by the vault; `c` is orthogonal to `a`.
 local ROWS = {
@@ -57,7 +57,6 @@ local ROWS = {
   { 'sub/e.md', { 90, 90, 0, 0 } },
   { 'c.md', { 0, 0, 127, 0 } },
 }
-local ORPHANS = { ['orphan1.md'] = true, ['orphan2.md'] = true, ['orphan3.md'] = true }
 
 local function bytes_of(rows)
   local paths, vecs = {}, {}
@@ -74,7 +73,7 @@ local function with_vault(rows, fn, data_json)
   local root = base .. '/vault'
   put(root .. '/.obsidian/plugins/vault-retrieval/data.json', data_json or '{}')
   for _, r in ipairs(rows) do
-    if not ORPHANS[r[1]] then
+    if not r[1]:match('^orphan') and not r[1]:match('^ghost') then
       put(root .. '/' .. r[1], '# ' .. r[1])
     end
   end
@@ -177,6 +176,65 @@ T.case('related: rows without a file are skipped and the list is still filled to
       paths(assert(search.related('a.md', { root = root, k = 2, min_similarity = 0 }))),
       { 'd.md', 'sub/e.md' }
     )
+  end)
+end)
+
+T.case(
+  'related and search: a k below 1, fractional or not a number ends, with no results or the floor',
+  function()
+    with_vault(ROWS, function(root)
+      for _, k in ipairs({ 0, -1, 0.5, 0 / 0, math.huge * -1 }) do
+        T.eq(search.related('a.md', { root = root, k = k, min_similarity = 0 }), {})
+      end
+      T.eq(search.related('a.md', { root = root, k = 'x', min_similarity = 0 }), {})
+      T.eq(
+        paths(assert(search.related('a.md', { root = root, k = 2.5, min_similarity = 0 }))),
+        { 'b.md', 'd.md' }
+      )
+      T.eq(#assert(search.related('a.md', { root = root, k = math.huge, min_similarity = 0 })), 4)
+      with_embedder({ 1, 0, 0, 0 }, function()
+        for _, k in ipairs({ 0, -1, 0 / 0 }) do
+          T.eq(run_search('q', { root = root, k = k, min_similarity = 0 }), {})
+        end
+        T.eq(paths(assert(run_search('q', { root = root, k = 2.5, min_similarity = 0 }))), { 'a.md', 'b.md' })
+      end)
+    end)
+  end
+)
+
+T.case('related and search: an index whose rows are all orphans ends with an empty list', function()
+  local rows = { { 'a.md', { 127, 0, 0, 0 } } }
+  for i = 1, 40 do
+    rows[#rows + 1] = { 'ghost' .. i .. '.md', { 127 - i, i, 0, 0 } }
+  end
+  with_vault(rows, function(root)
+    T.eq(search.related('a.md', { root = root, k = 5, min_similarity = 0 }), {})
+    with_embedder({ 0, 1, 0, 0 }, function()
+      -- 'a.md' is live, so it is the only result
+      T.eq(paths(assert(run_search('q', { root = root, k = 5, min_similarity = 0 }))), { 'a.md' })
+    end)
+  end)
+  -- no live row at all
+  local lone = { { 'ghost1.md', { 127, 0, 0, 0 } }, { 'ghost2.md', { 120, 9, 0, 0 } } }
+  with_vault(lone, function(root)
+    with_embedder({ 1, 0, 0, 0 }, function()
+      T.eq(run_search('q', { root = root, k = 5, min_similarity = 0 }), {})
+    end)
+  end)
+end)
+
+T.case('search: a torn reload passes the index warning on, as related does', function()
+  with_vault(ROWS, function(root)
+    with_embedder({ 1, 0, 0, 0 }, function()
+      local results, warning = run_search('q', { root = root, min_similarity = 0 })
+      T.ok(results and warning == nil, 'no warning on a clean index')
+      put(root .. '/_vaultrag/index.bin', bytes_of(ROWS):sub(1, 33))
+      local kept, why = run_search('q', { root = root, min_similarity = 0 })
+      T.eq(paths(kept), { 'a.md', 'b.md', 'd.md', 'sub/e.md', 'c.md' }) -- the old index answers
+      T.ok(why and why:find('using the index loaded earlier', 1, true), tostring(why))
+      local _, rwhy = search.related('a.md', { root = root })
+      T.ok(rwhy and rwhy:find('using the index loaded earlier', 1, true), tostring(rwhy))
+    end)
   end)
 end)
 

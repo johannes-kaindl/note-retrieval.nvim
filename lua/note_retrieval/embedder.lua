@@ -29,6 +29,9 @@ end
 
 local function done(cb, r, model, cfg, manifest)
   local dim = type(manifest) == 'table' and manifest.index_dim or nil
+  if type(dim) ~= 'number' or dim <= 0 or dim ~= math.floor(dim) then
+    dim = nil -- a header without a usable index_dim: the default
+  end
   cb({
     endpoint = r.endpoint,
     model = model,
@@ -88,7 +91,8 @@ function M.resolve(cfg, index_manifest, cb)
       if not id then
         return cb(nil, { kind = 'no-model-chosen', endpoint_models = r.models })
       end
-      state.set_model(r.endpoint.url, id)
+      -- Not remembering the pick must not lose it: the run goes on with the picked model.
+      pcall(state.set_model, r.endpoint.url, id)
       done(cb, r, id, cfg, index_manifest)
     end)
   end)
@@ -111,7 +115,8 @@ function M.query(resolved, text, cb)
 end
 
 --- The embedder the kit's `live_indexer` takes: `embedder(texts, cb)` with cb(vectors) |
---- cb(nil, { kind, detail }). The indexer cuts and averages the vectors itself.
+--- cb(nil, 'kind: detail'). The error is a string because the indexer shows `tostring(err)`; the
+--- vectors are cut and averaged by the indexer itself.
 function M.for_indexer(resolved)
   return function(texts, cb)
     llm.embed({
@@ -121,7 +126,7 @@ function M.for_indexer(resolved)
       timeout_ms = resolved.timeout_ms,
     }, function(res)
       if not res.ok then
-        return cb(nil, failure(res))
+        return cb(nil, ('%s: %s'):format(res.error, res.detail))
       end
       cb(res.vectors)
     end)

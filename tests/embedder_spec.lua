@@ -49,10 +49,10 @@ local function cfg_for(srv, extra)
 end
 
 local function resolve(cfg, manifest)
-  local got = await(function(cb)
+  local got, calls = await(function(cb)
     embedder.resolve(cfg, manifest, cb)
   end)
-  return got[1], got[2]
+  return got[1], got[2], calls
 end
 
 -- Replaces vim.ui.select for one case; `pick(items)` returns the choice (nil: dismissed).
@@ -138,8 +138,9 @@ T.case('resolve: a dismissed picker is an error and remembers nothing', function
   fresh()
   local srv = server({ 'a', 'b' })
   with_picker(function() end, function()
-    local r, err = resolve(cfg_for(srv), nil)
+    local r, err, calls = resolve(cfg_for(srv), nil)
     T.eq(r, nil)
+    T.eq(calls(), 1)
     T.eq(err, { kind = 'no-model-chosen', endpoint_models = { 'a', 'b' } })
     T.eq(state.model(srv.url), nil)
   end)
@@ -205,6 +206,38 @@ T.case('resolve: mode obsidian — a model other than the header names both mode
   both.close()
 end)
 
+T.case('resolve: a pick that cannot be remembered is still used, and cb fires once', function()
+  fresh()
+  local srv = server({ 'a', 'b' })
+  local original = state.set_model
+  state.set_model = function()
+    error('state dir not writable')
+  end
+  local ok, err = pcall(function()
+    with_picker(function(items)
+      return items[2]
+    end, function()
+      local r, e, calls = resolve(cfg_for(srv), nil)
+      T.eq(e, nil)
+      T.eq(r.model, 'b')
+      T.eq(calls(), 1)
+    end)
+  end)
+  state.set_model = original
+  srv.close()
+  assert(ok, err)
+end)
+
+T.case('resolve: an index_dim that is no positive whole number falls back to 256', function()
+  fresh()
+  local srv = server({ 'nomic' })
+  for _, bad in ipairs({ '128', -4, 0, 12.5 }) do
+    T.eq(resolve(cfg_for(srv), { embedding_model = 'nomic', index_dim = bad }).dim, 256, tostring(bad))
+  end
+  T.eq(resolve(cfg_for(srv), { embedding_model = 'nomic', index_dim = 128 }).dim, 128)
+  srv.close()
+end)
+
 T.case(
   'resolve: a header without a model demands nothing; a remembered model does not override a header',
   function()
@@ -225,8 +258,9 @@ T.case('resolve: errors are values — unreachable server, bad endpoints option'
   fresh()
   local dead = stub.start({})
   dead.close()
-  local r, err = resolve(cfg_for(dead), nil)
+  local r, err, calls = resolve(cfg_for(dead), nil)
   T.eq(r, nil)
+  T.eq(calls(), 1)
   T.eq(err.kind, 'unreachable')
   T.eq(type(err.detail), 'string')
   r, err = resolve({ endpoints_error = 'must be a list', timeout_ms = 1000 }, nil)
@@ -318,5 +352,8 @@ T.case('for_indexer: texts go out in one list, vectors come back in order, error
   end)
   short.close()
   T.eq(got[1], nil)
-  T.eq(got[2].kind, 'bad-response')
+  -- the indexer shows tostring(err): a string with the kind and the reason, never a table
+  T.eq(type(got[2]), 'string')
+  T.ok(got[2]:find('bad-response', 1, true), 'names the kind')
+  T.ok(got[2]:find('vector', 1, true), 'carries the detail')
 end)

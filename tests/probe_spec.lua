@@ -322,7 +322,7 @@ T.case('command: probe --json is one JSON line with n, hits, rate, failures, see
         local j = vim.json.decode(notes[1].msg)
         T.eq(j.n, 3)
         T.eq(j.hits, 1)
-        T.eq(j.rate, 1 / 3)
+        T.ok(math.abs(j.rate - 1 / 3) < 1e-9, 'rate ' .. tostring(j.rate)) -- Neovim 0.10 rounds the float on encode
         T.eq(j.seed, 20260903)
         T.eq(j.model, V.MODEL)
         T.eq(j.failures, {

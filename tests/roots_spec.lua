@@ -295,3 +295,38 @@ T.case('note_paths: a root that cannot be read gives nil and a message, not a ra
     T.ok(type(err) == 'string' and err ~= '', 'no message')
   end)
 end)
+
+T.case('title_of: the file name without .md, nothing read, only a trailing .md goes', function()
+  T.eq(roots.title_of('Note.md'), 'Note')
+  T.eq(roots.title_of('folder/sub/My Note.md'), 'My Note')
+  T.eq(roots.title_of('a.md.md'), 'a.md')
+  T.eq(roots.title_of('notes.txt'), 'notes.txt')
+  T.eq(roots.title_of('md.md'), 'md')
+  -- counter-check: the folder or the extension left on would be a different title
+  T.ok(roots.title_of('folder/Note.md') ~= 'folder/Note', 'folder kept')
+  T.ok(roots.title_of('Note.md') ~= 'Note.md', 'extension kept')
+end)
+
+T.case('relative_dir: a folder inside the root; absolute, drive and climbing names are not', function()
+  for _, name in ipairs({ '_index', 'a/b', '.notes-index', 'a\\b', 'idx/' }) do
+    T.eq(roots.relative_dir(name), true, name)
+  end
+  for _, name in ipairs({
+    '',
+    '/',
+    '//',
+    '/abs',
+    '\\abs',
+    'C:/x',
+    'c:x',
+    '..',
+    '../out',
+    'a/../b',
+    'a\\..\\b',
+  }) do
+    T.eq(roots.relative_dir(name), false, name)
+  end
+  for _, name in ipairs({ 5, false, {} }) do
+    T.eq(roots.relative_dir(name), false, tostring(name))
+  end
+end)

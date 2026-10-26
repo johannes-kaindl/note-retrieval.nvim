@@ -37,11 +37,6 @@ local function excludes(loaded, opts)
   return out
 end
 
--- The title is the file name without `.md` (spec 5.3): no file is read for it.
-local function title_of(path)
-  return (vim.fs.basename(path):gsub('%.md$', ''))
-end
-
 -- How many results `k` asks for: a whole number, 0 for anything that is not a number of at least 1.
 local function count_of(k)
   if type(k) ~= 'number' or k ~= k or k < 1 then
@@ -62,7 +57,7 @@ local function live_hits(root, k, rank)
   local out = {}
   for _, hit in ipairs(rank()) do
     if uv.fs_stat(root .. '/' .. hit.path) then
-      out[#out + 1] = { path = hit.path, score = hit.score, title = title_of(hit.path) }
+      out[#out + 1] = { path = hit.path, score = hit.score, title = roots.title_of(hit.path) }
       if #out == k then
         break
       end

@@ -93,7 +93,18 @@ local function read_settings(path)
   return value
 end
 
-local function relative_dir(name)
+-- The title of a note is the file name without `.md` (spec 5.3): no file is read for it.
+---@param path string
+---@return string
+function M.title_of(path)
+  return (vim.fs.basename(path):gsub('%.md$', ''))
+end
+
+--- Whether `name` is a folder inside a root: a non-empty path that is neither absolute (`/`, `\\`,
+--- a drive) nor climbs out with `..`.
+---@param name any
+---@return boolean
+function M.relative_dir(name)
   if type(name) ~= 'string' or name:gsub('/+$', '') == '' or name:find('^[/\\]') or name:find('^%a:') then
     return false
   end
@@ -126,7 +137,7 @@ function M.mode(root, cfg)
   data = data or {}
   local dir = data.indexDir == nil and M.OBSIDIAN_DEFAULTS.index_dir or data.indexDir
   local exclude = data.exclude == nil and M.OBSIDIAN_DEFAULTS.exclude or data.exclude
-  if not relative_dir(dir) then
+  if not M.relative_dir(dir) then
     return nil, ('%s/data.json: indexDir must be a folder inside the vault'):format(plugin)
   end
   if type(exclude) ~= 'table' or (next(exclude) ~= nil and not vim.islist(exclude)) then

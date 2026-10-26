@@ -414,3 +414,11 @@ T.case('readonly_storage: reads like fs_storage, write and mkdir raise and leave
     T.eq(names, want)
   end)
 end)
+
+T.case('mtime_ms: whole milliseconds of a stat, the fraction cut and not rounded', function()
+  T.eq(index.mtime_ms({ mtime = { sec = 5, nsec = 0 } }), 5000)
+  T.eq(index.mtime_ms({ mtime = { sec = 5, nsec = 999999999 } }), 5999)
+  T.eq(index.mtime_ms({ mtime = { sec = 1760918400, nsec = 123456789 } }), 1760918400123)
+  -- counter-check: rounding would give 6000 for the second stat
+  T.ok(index.mtime_ms({ mtime = { sec = 5, nsec = 999999999 } }) ~= 6000, 'rounded')
+end)

@@ -12,6 +12,7 @@ local config = require('note_retrieval.config')
 local debounce = require('note_retrieval.kit.debounce')
 local embedder_lib = require('note_retrieval.embedder')
 local guard = require('note_retrieval.kit.index_guard')
+local index_lib = require('note_retrieval.index')
 local live_indexer = require('note_retrieval.kit.live_indexer')
 local lock = require('note_retrieval.kit.lock')
 local roots = require('note_retrieval.roots')
@@ -523,7 +524,7 @@ local function stamp_note(root, path)
   if not st then
     return nil
   end
-  return { st.mtime.sec * 1000 + math.floor(st.mtime.nsec / 1e6), st.size }
+  return { index_lib.mtime_ms(st), st.size }
 end
 
 --- Rebuilds the whole index from the notes of the vault. `cb(report, err)`: `report` is

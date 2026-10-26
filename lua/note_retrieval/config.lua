@@ -3,6 +3,7 @@
 -- Read at the start of every run, so a change applies to the next one. resolve() checks every field
 -- and returns all problems at once — setup() reports them, :checkhealth lists them.
 local llm = require('note_retrieval.kit.llm')
+local roots = require('note_retrieval.roots')
 
 local M = {}
 
@@ -63,14 +64,8 @@ local CHECKS = {
     end
   end,
   index_dir = function(v)
-    local why = 'must be a folder inside the root, such as "_index"'
-    if type(v) ~= 'string' or v:gsub('/+$', '') == '' or v:find('^[/\\]') or v:find('^%a:') then
-      return why
-    end
-    for part in v:gmatch('[^/\\]+') do
-      if part == '..' then
-        return why
-      end
+    if not roots.relative_dir(v) then
+      return 'must be a folder inside the root, such as "_index"'
     end
   end,
   exclude = function(v)

@@ -30,10 +30,6 @@ local function is_open()
   return state.buf ~= nil and vim.api.nvim_buf_is_valid(state.buf) and #vim.fn.win_findbuf(state.buf) > 0
 end
 
-local function title_of(path)
-  return (vim.fs.basename(path):gsub('%.md$', ''))
-end
-
 local function folder_of(path)
   local dir = vim.fs.dirname(path)
   return dir == '.' and '(vault root)' or dir
@@ -255,7 +251,7 @@ end
 -- What a link to `path` says: the name of the note; where that name alone would not find this
 -- note (another note ends with it too), its path, so the link is not left ambiguous.
 local function link_text(kind, path)
-  local name = title_of(path)
+  local name = roots.title_of(path)
   local loaded = index.current(state.root)
   if kind == 'wiki' and loaded and links.resolve(name, loaded.paths) ~= path then
     return links.format(kind, path, (path:gsub('%.md$', '')))

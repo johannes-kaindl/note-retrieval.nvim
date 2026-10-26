@@ -69,7 +69,7 @@ local function iso_ms(text)
 end
 
 -- The `mtime` the index stamps carry: whole milliseconds, `floor(mtimeMs)`.
-local function mtime_ms(stat)
+function M.mtime_ms(stat)
   return stat.mtime.sec * 1000 + math.floor(stat.mtime.nsec / 1e6)
 end
 
@@ -216,7 +216,7 @@ function M.stale_mark(row_path, root)
   if not file then
     return nil
   end
-  local now = { mtime_ms(file), file.size }
+  local now = { M.mtime_ms(file), file.size }
   local stamp = loaded.stamps and loaded.stamps[row] or guard.UNKNOWN_STAMP
   if stamp[1] ~= guard.UNKNOWN_STAMP[1] or stamp[2] ~= guard.UNKNOWN_STAMP[2] then
     if #guard.find_stale_vector_paths({ row_path }, { stamp }, { [row_path] = now }) > 0 then

@@ -107,8 +107,13 @@ local function linked_notes(buf, own, paths)
   if not text:find('[', 1, true) then
     return set, n
   end
+  local seen = {}
   for _, t in ipairs(links.targets(text)) do
-    local path = links.resolve(t.target, paths)
+    local path
+    if not seen[t.target] then
+      seen[t.target] = true
+      path = links.resolve(t.target, paths)
+    end
     if path and path ~= own and not set[path] then
       set[path] = true
       n = n + 1
@@ -142,9 +147,11 @@ function M.update(buf)
       linked, hidden = linked_notes(buf, rel, loaded.paths)
     end
     -- hidden notes are cut from the answer afterwards, so ask for as many more
-    local found, why, torn = search.related(rel, { root = root, k = cfg.k + hidden })
+    -- `related` answers `results, warning` or `nil, message`; the warning of a torn reload is the
+    -- one `index.current` gave just now, too
+    local found, why = search.related(rel, { root = root, k = cfg.k + hidden })
     if not found then
-      model.message = why
+      model.message, model.warning = why, warning
     else
       local shown = {}
       for _, r in ipairs(found) do
@@ -152,7 +159,7 @@ function M.update(buf)
           shown[#shown + 1] = r
         end
       end
-      model.results, model.warning = shown, torn
+      model.results, model.warning = shown, warning or why
       if #shown == 0 then
         model.message = search.NO_RESULTS
       end
@@ -165,16 +172,25 @@ function M.update(buf)
   return lines
 end
 
--- The window the person came from: the previous one if it is still there, else any other.
+-- A window that shows a note (a normal file buffer, not the panel, no float): what a note may be
+-- opened or a link written in. An explorer, help or quickfix window is not.
+local function is_note_win(win, panel_win)
+  return win ~= panel_win
+    and vim.api.nvim_win_is_valid(win)
+    and vim.api.nvim_win_get_config(win).relative == ''
+    and vim.bo[vim.api.nvim_win_get_buf(win)].buftype == ''
+end
+
+-- The window the person came from if it still shows a note, else any other window that does.
 local function previous_win()
   local panel_win = vim.api.nvim_get_current_win()
   local nr = vim.fn.winnr('#')
   local prev = nr > 0 and vim.fn.win_getid(nr) or 0
-  if prev ~= 0 and prev ~= panel_win and vim.api.nvim_win_is_valid(prev) then
+  if prev ~= 0 and is_note_win(prev, panel_win) then
     return prev
   end
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if win ~= panel_win and vim.api.nvim_win_get_config(win).relative == '' then
+    if is_note_win(win, panel_win) then
       return win
     end
   end
@@ -204,15 +220,22 @@ local function open_note()
   if not path then
     return
   end
-  local win = previous_win()
+  local win, made = previous_win(), false
   if not win then
-    vim.cmd('leftabove vsplit')
-    win = vim.api.nvim_get_current_win()
+    -- no note window (the panel is alone, or the others are an explorer, help...): a new one to the
+    -- left of the panel, which keeps its width, the new window takes the rest
+    local panel_win = vim.api.nvim_get_current_win()
+    vim.cmd('topleft vsplit')
+    win, made = vim.api.nvim_get_current_win(), true
+    vim.api.nvim_win_set_width(panel_win, M.WIDTH)
   end
   vim.api.nvim_set_current_win(win)
   local ok, err = pcall(vim.cmd, 'edit ' .. vim.fn.fnameescape(state.root .. '/' .. path))
   if not ok then
     warn(tostring(err))
+    if made and vim.api.nvim_win_is_valid(win) then
+      pcall(vim.api.nvim_win_close, win, true)
+    end
   end
 end
 

@@ -430,3 +430,86 @@ T.case('a note without a row, and a vault without an index, are said in words', 
     T.ok(panel_lines()[2]:find('index', 1, true), panel_lines()[2])
   end)
 end)
+
+T.case(
+  'a torn index reload: the panel shows the warning, with the rows of the index loaded earlier',
+  function()
+    with_vault(nil, function(root)
+      config.set({ min_similarity = 0 })
+      open_panel(root, 'a.md')
+      T.ok(not table.concat(panel_lines(), '\n'):find('Warning:', 1, true), 'no warning on a clean index')
+      local paths, vecs = {}, {}
+      for i, r in ipairs(ROWS) do
+        paths[i], vecs[i] = r[1], r[2]
+      end
+      put(root .. '/_vaultrag/index.bin', container(paths, vecs):sub(1, 33))
+      panel.update(vim.api.nvim_get_current_buf())
+      local lines = panel_lines()
+      T.eq(lines[1], 'Related to a.md: 5 notes')
+      T.ok(lines[2]:match('^Warning: .*using the index loaded earlier'), lines[2])
+      T.ok(lines[3]:match('^0%.%d%d  b — '), lines[3])
+    end)
+  end
+)
+
+T.case('<CR> with the panel alone opens a note window to its left; the panel keeps its width', function()
+  with_vault(nil, function(root)
+    config.set({ min_similarity = 0 })
+    local columns = vim.o.columns
+    vim.o.columns = 120
+    local note_win = open_panel(root, 'a.md')
+    local width = vim.api.nvim_win_get_width(panel_win())
+    vim.api.nvim_win_close(note_win, true) -- the window the person came from is gone
+    vim.api.nvim_set_current_win(panel_win())
+    press('<CR>', lnum_of('e'))
+    local cur = vim.api.nvim_get_current_win()
+    T.eq(real(vim.api.nvim_buf_get_name(0)), real(root .. '/sub/e.md'))
+    T.ok(cur ~= panel_win())
+    T.ok(vim.fn.win_screenpos(cur)[2] < vim.fn.win_screenpos(panel_win())[2], 'to the left')
+    T.eq(vim.api.nvim_win_get_width(panel_win()), width)
+    local took = vim.api.nvim_win_get_width(cur)
+    vim.o.columns = columns
+    T.ok(took > width, 'it took the rest of the width, not half of the panel: ' .. took)
+  end)
+end)
+
+T.case('<CR> and l leave a window that is no note window (explorer, help, quickfix) alone', function()
+  with_vault(nil, function(root)
+    config.set({ min_similarity = 0 })
+    local other = open_panel(root, 'a.md')
+    local tree = vim.api.nvim_create_buf(false, true) -- buftype nofile, like an explorer
+    vim.api.nvim_win_set_buf(other, tree)
+    vim.api.nvim_buf_set_lines(tree, 0, -1, false, { 'tree' })
+    local seen = {}
+    local notify = vim.notify
+    vim.notify = function(msg)
+      seen[#seen + 1] = msg
+    end
+    press('l', lnum_of('e'))
+    vim.notify = notify
+    T.eq(vim.api.nvim_buf_get_lines(tree, 0, -1, false), { 'tree' })
+    T.ok(seen[1] and seen[1]:find('no note window', 1, true), tostring(seen[1]))
+    press('<CR>', lnum_of('e'))
+    T.eq(vim.api.nvim_win_get_buf(other), tree)
+    T.eq(real(vim.api.nvim_buf_get_name(0)), real(root .. '/sub/e.md'))
+    T.ok(vim.api.nvim_get_current_win() ~= other and vim.api.nvim_get_current_win() ~= panel_win())
+  end)
+end)
+
+T.case('a torn index reload and a note without a row: the warning and the message both stand', function()
+  with_vault(nil, function(root)
+    put(root .. '/new.md', 'brand new')
+    open_panel(root, 'a.md')
+    local paths, vecs = {}, {}
+    for i, r in ipairs(ROWS) do
+      paths[i], vecs[i] = r[1], r[2]
+    end
+    put(root .. '/_vaultrag/index.bin', container(paths, vecs):sub(1, 33))
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/new.md'))
+    panel.update(vim.api.nvim_get_current_buf())
+    local lines = panel_lines()
+    T.eq(#lines, 3)
+    T.ok(lines[2]:match('^Warning: .*using the index loaded earlier'), lines[2])
+    T.eq(lines[3], search.NO_ROW)
+  end)
+end)

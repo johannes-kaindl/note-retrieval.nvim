@@ -90,3 +90,95 @@ T.case('format and targets agree: what md format writes, targets reads back, res
   T.eq(got[1].target, 'My Notes/Plan (v2).md')
   T.eq(links.resolve(got[1].target, { path, 'x.md' }), path)
 end)
+
+T.case(
+  'targets: the backslash that escapes the bar of an alias in a table cell is not part of the target',
+  function()
+    T.eq(targets('| [[Target\\|Alias]] | [[Other\\|x]] |'), { 'wiki:Target', 'wiki:Other' })
+    T.eq(targets('[[Target\\#Sec]]'), { 'wiki:Target' })
+  end
+)
+
+-- What resolve did before it had a lookup: scan every path, one comparison each.
+local function scanning(target, note_paths)
+  local want = target:gsub('^%./', ''):gsub('^/+', ''):gsub('%.[mM][dD]$', ''):lower()
+  if want == '' then
+    return nil, 'missing'
+  end
+  local tail = want .. '.md'
+  local n = #tail
+  local whole, ending, count = nil, nil, 0
+  for _, p in ipairs(note_paths) do
+    if #p >= n and p:sub(-n):lower() == tail then
+      if #p == n then
+        whole = whole or p
+      elseif p:sub(-n - 1, -n - 1) == '/' then
+        count = count + 1
+        ending = ending or p
+      end
+    end
+  end
+  if whole then
+    return whole
+  end
+  if count == 1 then
+    return ending
+  end
+  return nil, count == 0 and 'missing' or 'ambiguous'
+end
+
+T.case('resolve: the lookup answers exactly what a scan of the paths answers', function()
+  local paths = vim.list_extend({ 'readme.TXT', 'x/Y.MD', 'Plan.md', 'a/plan.md', 'a/b/Plan.md' }, PATHS)
+  local targets_ = {
+    'Plan',
+    'plan.md',
+    'a/Plan',
+    'b/plan',
+    'a/b/plan.MD',
+    'x/y',
+    'Y',
+    'readme',
+    'readme.txt',
+    'Idea',
+    'sub/deep/idea',
+    '/a',
+    './a',
+    '',
+    'Nope',
+    'lan',
+    'Notes/Plan',
+    'Archive/Plan',
+  }
+  for _, t in ipairs(targets_) do
+    local got, why = links.resolve(t, paths)
+    local want, wwhy = scanning(t, paths)
+    T.eq({ got, why }, { want, wwhy }, 'target ' .. t)
+  end
+end)
+
+T.case(
+  'resolve: 300 targets over 13,000 paths build one lookup; a new or changed list builds a new one',
+  function()
+    local paths = {}
+    for i = 1, 13000 do
+      paths[i] = ('folder%d/sub%d/Note %d.md'):format(i % 40, i % 7, i)
+    end
+    local before = links._builds
+    for i = 1, 300 do
+      T.eq(links.resolve(('Note %d'):format(i * 40), paths), paths[i * 40])
+    end
+    T.eq(links._builds - before, 1)
+    -- the same list again: still the lookup of before
+    links.resolve('Note 1', paths)
+    T.eq(links._builds - before, 1)
+    -- a list that is not the same table (the index reloaded) is looked up anew
+    local reloaded = vim.deepcopy(paths)
+    reloaded[#reloaded + 1] = 'late/Late.md'
+    T.eq(links.resolve('Late', reloaded), 'late/Late.md')
+    T.eq(links._builds - before, 2)
+    -- and so is one that grew, with the same table
+    paths[#paths + 1] = 'late/Later.md'
+    T.eq(links.resolve('Later', paths), 'late/Later.md')
+    T.eq(links._builds - before, 3)
+  end
+)

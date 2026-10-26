@@ -6,7 +6,7 @@
 
 ## Project character
 
-**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction: Task 1 (scaffold, kit vendoring, options) is done; the features follow the plan 0.1.0.
+**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction (plan 0.1.0): Block A is done — scaffold and options, roots and modes, the index reader, the embedder, `related` and `search`, the panel, the commands, `<Plug>` mappings and `:checkhealth`. Still to come: the own index writer (`reindex`, `update`, `stop`), the self-find probe and the full docs.
 
 ## Architecture
 
@@ -16,6 +16,9 @@
 | `lua/note_retrieval/roots.lua` | the vault root (option `roots`, else the nearest `.obsidian/` or `.zk/`), the mode (`obsidian` reads the index of the Obsidian plugin, `eigen` keeps its own), the index path and the set of note paths; never writes to anything Obsidian owns |
 | `lua/note_retrieval/embedder.lua` | server and model of a run (option, else remembered, else asked; in mode `obsidian` the model must be the index header's, else `model-mismatch`), one query embedding with no instruction in front, the adapter for the kit's `live_indexer`; callbacks only |
 | `lua/note_retrieval/state.lua` | the model chosen per server, `stdpath('state')/note-retrieval/state.json` |
+| `lua/note_retrieval/index.lua`, `search.lua` | the index in memory (loaded on first need, reloaded when the file changes, never written in mode `obsidian`); `related` from a note's row, `search` with one embedding call, `pick` |
+| `lua/note_retrieval/links.lua`, `panel.lua` | link targets and how a link is written (`link_format` `wiki`\|`markdown`); the panel with the related notes |
+| `lua/note_retrieval/command.lua`, `status.lua`, `messages.lua`, `health.lua`, `plugin/note_retrieval.lua` | `:NoteRetrieval {related\|search\|status\|model\|reset}` and the `<Plug>` mappings; the state shown by `status`; one sentence with the next step for every error value (strings of `related` and the index, `{ kind }` tables of `search` and the embedder); `:checkhealth note_retrieval`; the plugin file loads only the command and the mappings, no index is read at start |
 | `lua/note_retrieval/kit/` | vendored from `nvim-kit` (`VENDOR.json`) — never edit |
 | `tests/` | specs for the kit's headless runner (`tests/run.lua`) |
 | `doc/note-retrieval.txt` | the manual, `:help note-retrieval` — commands, mappings and options live only here |
@@ -37,10 +40,10 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Conventions
 
-- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 22 files plus `data/`):
+- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 23 files plus `data/`):
 
   ```
-  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
+  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance wait; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
   ```
 - **Every module under `lua/note_retrieval/` except `kit/` carries `-- domain: note_retrieval` in its first five lines** (`tests/kit_spec.lua` checks it). Fachfreie helpers belong in nvim-kit (`../AGENTS.md`, "Bibliothek ab Eins"); the gate does not see `local function`s in a domain module, the reviewer does.
 - `http_stub` is vendored for tests only; no plugin module requires it.

@@ -6,7 +6,7 @@
 
 ## Project character
 
-**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction (plan 0.1.0): Block A is done — scaffold and options, roots and modes, the index reader, the embedder, `related` and `search`, the panel, the commands, `<Plug>` mappings and `:checkhealth`. Block B so far: the own index writer (`indexer.lua`) and the commands `reindex`/`update`/`stop` (`status` shows the progress; `update` is the delta of the index against the vault, `indexer.sync`). `update` on save is in: `BufWritePost` on a note of an own-index vault, debounced (`indexer.SAVE_DEBOUNCE_MS`), one `sync` → `update`s → `persist` per window; the autocmd group `NoteRetrievalSave` is installed by `indexer.attach_on_save` (from `for_root` and the first `index.locate` of an eigen root) and never in mode `obsidian`. The self-find probe is in (`probe.lua`, `:NoteRetrieval probe [n] [--json]`, run after a full reindex in mode eigen unless `probe_auto` is false). Still to come: the full docs.
+**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction (plan 0.1.0): Block A is done — scaffold and options, roots and modes, the index reader, the embedder, `related` and `search`, the panel, the commands, `<Plug>` mappings and `:checkhealth`. Block B so far: the own index writer (`indexer.lua`) and the commands `reindex`/`update`/`stop` (`status` shows the progress; `update` is the delta of the index against the vault, `indexer.sync`). `update` on save is in: `BufWritePost` on a note of an own-index vault, debounced (`indexer.SAVE_DEBOUNCE_MS`), one `sync` → `update`s → `persist` per window; the autocmd group `NoteRetrievalSave` is installed by `indexer.attach_on_save` (from `for_root` and the first `index.locate` of an eigen root) and never in mode `obsidian`. The self-find probe is in (`probe.lua`, `:NoteRetrieval probe [n] [--json]`, run after a full reindex in mode eigen unless `probe_auto` is false). The user docs are in: `README.md`, `docs/` (Diátaxis: tutorial, how-tos, reference, explanation) and the manual `doc/note-retrieval.txt`; `make live` is one run against a real embedding server (`tests/live.lua`).
 
 ## Architecture
 
@@ -23,7 +23,7 @@
 | `lua/note_retrieval/command.lua`, `status.lua`, `messages.lua`, `health.lua`, `plugin/note_retrieval.lua` | `:NoteRetrieval {related\|search\|status\|model\|reindex\|update\|stop\|probe\|reset}` and the `<Plug>` mappings; the state shown by `status`; one sentence with the next step for every error value (strings of `related` and the index, `{ kind }` tables of `search` and the embedder); `:checkhealth note_retrieval`; the plugin file loads only the command and the mappings, no index is read at start |
 | `lua/note_retrieval/kit/` | vendored from `nvim-kit` (`VENDOR.json`) — never edit |
 | `tests/` | specs for the kit's headless runner (`tests/run.lua`) |
-| `doc/note-retrieval.txt` | the manual, `:help note-retrieval` — commands, mappings and options live only here |
+| `doc/note-retrieval.txt` | the manual, `:help note-retrieval` — the manual: commands, mappings, Lua API, options, limits. `README.md` and `docs/reference/` repeat the names and defaults for reading outside Neovim; `tests/docs_spec.lua` checks the names |
 
 Boundaries: the index core (chunker, vectors, VRIX, guards, live indexer, probe) lives in nvim-kit; this plugin owns the options, the commands and the views.
 
@@ -32,7 +32,7 @@ Boundaries: the index core (chunker, vectors, VRIX, guards, live indexer, probe)
 ```bash
 make check           # stylua --check · selene · tests in headless Neovim · vendor-check (../tools/kit/vendor.py)
 make release-check   # Bibliothek gate over everything since the last tag (../tools/bibliothek/gate.py)
-make live            # one run against a real embedding server; tests/live.lua (not there yet)
+make live            # one run against a real embedding server; tests/live.lua (NOTE_RETRIEVAL_LIVE_URL and _MODEL required)
 make test NVIM=/path/to/nvim   # the suite with another Neovim — the minimum version run:
 # D=$(mktemp -d); curl -sfL https://github.com/neovim/neovim/releases/download/v0.10.4/nvim-macos-arm64.tar.gz | tar -xz -C "$D"; xattr -cr "$D"
 # make test NVIM="$D/nvim-macos-arm64/bin/nvim"
@@ -50,7 +50,7 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 - **Every module under `lua/note_retrieval/` except `kit/` carries `-- domain: note_retrieval` in its first five lines** (`tests/kit_spec.lua` checks it). Fachfreie helpers belong in nvim-kit (`../AGENTS.md`, "Bibliothek ab Eins"); the gate does not see `local function`s in a domain module, the reviewer does.
 - `http_stub` is vendored for tests only; no plugin module requires it.
 - Every test has a counter-check that shows it can fail.
-- **A user-visible change updates the docs in the same commit:** `doc/note-retrieval.txt` for commands, keys and options. `tests/docs_spec.lua` checks option tags, command tags and `<Plug>` tags against the code.
+- **A user-visible change updates the docs in the same commit:** `doc/note-retrieval.txt` for commands, keys and options, and `README.md` and `docs/` where they repeat it (the panel text, the marks, the limits). `tests/docs_spec.lua` checks option tags, command tags and `<Plug>` tags against the code, and that README and the reference name every command, option and `<Plug>` mapping.
 
 ## Memory
 
@@ -58,5 +58,5 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Abweichungen von der Leitkonvention
 
-- README-Tier: noch nicht gesetzt; die README ist ein Platzhalter bis Task 11 des Plans 0.1.0.
-- Nutzer-Doku: bis dahin nur `doc/note-retrieval.txt` (Optionen); `tests/docs_spec.lua` prüft Optionen, Befehle und `<Plug>`-Belegungen gegen den Code.
+- README-Tier: wie transmute.nvim (`nvim-plugin`), nicht gegen die Tier-Spezifikation gemessen. Noch kein Hero-Bild (CORE-META-03): die README zeigt das Panel als Text, ausdrücklich als Beispiel gekennzeichnet (Notizen aus der Fixture, Werte nicht gemessen).
+- Nutzer-Doku doppelt angelegt: `:help note-retrieval` ist das Handbuch, `docs/` die Diátaxis-Doku. Anders als bei transmute.nvim stehen Befehle und Optionen auch in README und `docs/reference/`; `tests/docs_spec.lua` prüft Namen von Optionen, Befehlen und `<Plug>`-Belegungen gegen den Code, die Standardwerte prüft kein Test.

@@ -99,21 +99,22 @@ local function bytes(path)
   return s
 end
 
--- The kit's conformance vectors of code-kit (probeOrder, probeQuery) live in the nvim-kit repo of the
--- Dach, not in the vendored copy: without the Dach this says so instead of passing quietly.
-local function vectors_file(name)
-  local path = repo .. '/../nvim-kit/tests/conformance/code-kit/' .. name .. '.json'
-  if vim.uv.fs_stat(path) then
-    return vim.json.decode(bytes(path), { luanil = { object = true } }).cases
+-- The conformance vectors of code-kit (probeOrder, probeQuery). A subset is committed in
+-- tests/fixtures/probe_cases.json (copied unchanged, source and nvim-kit tag named in the file), so
+-- these cases always run. The full files live in the nvim-kit repo of the Dach; when it is there they
+-- are checked as well (a mismatch fails), when it is not the fixture alone stands.
+local function load_cases(name)
+  local fixture =
+    vim.json.decode(bytes(repo .. '/tests/fixtures/probe_cases.json'), { luanil = { object = true } })
+  local out = { fixture = fixture[name] }
+  local full = repo .. '/../nvim-kit/tests/conformance/code-kit/' .. name .. '.json'
+  if vim.uv.fs_stat(full) then
+    out.full = vim.json.decode(bytes(full), { luanil = { object = true } }).cases
   end
-  io.write(('    SKIPPED %s: no nvim-kit at %s\n'):format(name, path))
+  return out
 end
 
-T.case('the order of the sample is the kit conformance order (probeOrder)', function()
-  local cases = vectors_file('probeOrder')
-  if not cases then
-    return
-  end
+local function check_order(cases)
   for _, c in ipairs(cases) do
     local paths, want = {}, {}
     for i, f in ipairs(c.args[1]) do
@@ -124,13 +125,10 @@ T.case('the order of the sample is the kit conformance order (probeOrder)', func
     end
     T.eq(probe.order(paths, c.args[2]), want, c.name)
   end
-end)
+end
 
-T.case('the query and the window are the kit conformance ones (probeQuery), read from the note', function()
-  local cases = vectors_file('probeQuery')
-  if not cases then
-    return
-  end
+-- Cases with `strict` are the kit's own option, which this module does not expose: left out.
+local function check_query(cases)
   local dir = vim.fn.tempname()
   vim.fn.mkdir(dir, 'p')
   local checked = 0
@@ -142,7 +140,24 @@ T.case('the query and the window are the kit conformance ones (probeQuery), read
     end
   end
   vim.fn.delete(dir, 'rf')
-  T.ok(checked >= 14, 'too few cases checked: ' .. checked)
+  return checked
+end
+
+T.case('the order of the sample is the kit conformance order (probeOrder)', function()
+  local cases = load_cases('probeOrder')
+  T.ok(#cases.fixture >= 5, 'the fixture lost cases')
+  check_order(cases.fixture)
+  if cases.full then
+    check_order(cases.full)
+  end
+end)
+
+T.case('the query and the window are the kit conformance ones (probeQuery), read from the note', function()
+  local cases = load_cases('probeQuery')
+  T.ok(check_query(cases.fixture) >= 12, 'the fixture lost cases')
+  if cases.full then
+    T.ok(check_query(cases.full) >= 14, 'too few cases checked')
+  end
 end)
 
 T.case('select: the sample is the first n candidates in the order of the seed', function()

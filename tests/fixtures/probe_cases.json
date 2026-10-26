@@ -1,0 +1,671 @@
+{
+ "source": "nvim-kit tests/conformance/code-kit/probeOrder.json and probeQuery.json (code-kit vectors), subset copied unchanged",
+ "nvim_kit_tag": "0.15.0",
+ "probeOrder": [
+  {
+   "name": "30 files, default seed",
+   "args": [
+    [
+     {
+      "path": "ordner0/notiz-0.md",
+      "mtime": 1700000000000
+     },
+     {
+      "path": "ordner1/notiz-1.md",
+      "mtime": 1700000000001
+     },
+     {
+      "path": "ordner2/notiz-2.md",
+      "mtime": 1700000000002
+     },
+     {
+      "path": "ordner3/notiz-3.md",
+      "mtime": 1700000000003
+     },
+     {
+      "path": "ordner4/notiz-4.md",
+      "mtime": 1700000000004
+     },
+     {
+      "path": "ordner5/notiz-5.md",
+      "mtime": 1700000000005
+     },
+     {
+      "path": "ordner6/notiz-6.md",
+      "mtime": 1700000000006
+     },
+     {
+      "path": "ordner0/notiz-7.md",
+      "mtime": 1700000000007
+     },
+     {
+      "path": "ordner1/notiz-8.md",
+      "mtime": 1700000000008
+     },
+     {
+      "path": "ordner2/notiz-9.md",
+      "mtime": 1700000000009
+     },
+     {
+      "path": "ordner3/notiz-10.md",
+      "mtime": 1700000000010
+     },
+     {
+      "path": "ordner4/notiz-11.md",
+      "mtime": 1700000000011
+     },
+     {
+      "path": "ordner5/notiz-12.md",
+      "mtime": 1700000000012
+     },
+     {
+      "path": "ordner6/notiz-13.md",
+      "mtime": 1700000000013
+     },
+     {
+      "path": "ordner0/notiz-14.md",
+      "mtime": 1700000000014
+     },
+     {
+      "path": "ordner1/notiz-15.md",
+      "mtime": 1700000000015
+     },
+     {
+      "path": "ordner2/notiz-16.md",
+      "mtime": 1700000000016
+     },
+     {
+      "path": "ordner3/notiz-17.md",
+      "mtime": 1700000000017
+     },
+     {
+      "path": "ordner4/notiz-18.md",
+      "mtime": 1700000000018
+     },
+     {
+      "path": "ordner5/notiz-19.md",
+      "mtime": 1700000000019
+     },
+     {
+      "path": "ordner6/notiz-20.md",
+      "mtime": 1700000000020
+     },
+     {
+      "path": "ordner0/notiz-21.md",
+      "mtime": 1700000000021
+     },
+     {
+      "path": "ordner1/notiz-22.md",
+      "mtime": 1700000000022
+     },
+     {
+      "path": "ordner2/notiz-23.md",
+      "mtime": 1700000000023
+     },
+     {
+      "path": "ordner3/notiz-24.md",
+      "mtime": 1700000000024
+     },
+     {
+      "path": "ordner4/notiz-25.md",
+      "mtime": 1700000000025
+     },
+     {
+      "path": "ordner5/notiz-26.md",
+      "mtime": 1700000000026
+     },
+     {
+      "path": "ordner6/notiz-27.md",
+      "mtime": 1700000000027
+     },
+     {
+      "path": "ordner0/notiz-28.md",
+      "mtime": 1700000000028
+     },
+     {
+      "path": "ordner1/notiz-29.md",
+      "mtime": 1700000000029
+     }
+    ],
+    20260903
+   ],
+   "expected": [
+    {
+     "path": "ordner4/notiz-4.md",
+     "mtime": 1700000000004
+    },
+    {
+     "path": "ordner3/notiz-24.md",
+     "mtime": 1700000000024
+    },
+    {
+     "path": "ordner2/notiz-16.md",
+     "mtime": 1700000000016
+    },
+    {
+     "path": "ordner5/notiz-26.md",
+     "mtime": 1700000000026
+    },
+    {
+     "path": "ordner6/notiz-6.md",
+     "mtime": 1700000000006
+    },
+    {
+     "path": "ordner3/notiz-10.md",
+     "mtime": 1700000000010
+    },
+    {
+     "path": "ordner6/notiz-20.md",
+     "mtime": 1700000000020
+    },
+    {
+     "path": "ordner1/notiz-15.md",
+     "mtime": 1700000000015
+    },
+    {
+     "path": "ordner0/notiz-7.md",
+     "mtime": 1700000000007
+    },
+    {
+     "path": "ordner4/notiz-25.md",
+     "mtime": 1700000000025
+    },
+    {
+     "path": "ordner0/notiz-28.md",
+     "mtime": 1700000000028
+    },
+    {
+     "path": "ordner1/notiz-1.md",
+     "mtime": 1700000000001
+    },
+    {
+     "path": "ordner0/notiz-14.md",
+     "mtime": 1700000000014
+    },
+    {
+     "path": "ordner3/notiz-3.md",
+     "mtime": 1700000000003
+    },
+    {
+     "path": "ordner5/notiz-12.md",
+     "mtime": 1700000000012
+    },
+    {
+     "path": "ordner0/notiz-21.md",
+     "mtime": 1700000000021
+    },
+    {
+     "path": "ordner3/notiz-17.md",
+     "mtime": 1700000000017
+    },
+    {
+     "path": "ordner5/notiz-5.md",
+     "mtime": 1700000000005
+    },
+    {
+     "path": "ordner6/notiz-27.md",
+     "mtime": 1700000000027
+    },
+    {
+     "path": "ordner0/notiz-0.md",
+     "mtime": 1700000000000
+    },
+    {
+     "path": "ordner2/notiz-2.md",
+     "mtime": 1700000000002
+    },
+    {
+     "path": "ordner2/notiz-23.md",
+     "mtime": 1700000000023
+    },
+    {
+     "path": "ordner1/notiz-8.md",
+     "mtime": 1700000000008
+    },
+    {
+     "path": "ordner4/notiz-18.md",
+     "mtime": 1700000000018
+    },
+    {
+     "path": "ordner4/notiz-11.md",
+     "mtime": 1700000000011
+    },
+    {
+     "path": "ordner1/notiz-29.md",
+     "mtime": 1700000000029
+    },
+    {
+     "path": "ordner1/notiz-22.md",
+     "mtime": 1700000000022
+    },
+    {
+     "path": "ordner6/notiz-13.md",
+     "mtime": 1700000000013
+    },
+    {
+     "path": "ordner5/notiz-19.md",
+     "mtime": 1700000000019
+    },
+    {
+     "path": "ordner2/notiz-9.md",
+     "mtime": 1700000000009
+    }
+   ]
+  },
+  {
+   "name": "other seed",
+   "args": [
+    [
+     {
+      "path": "ordner0/notiz-0.md",
+      "mtime": 1700000000000
+     },
+     {
+      "path": "ordner1/notiz-1.md",
+      "mtime": 1700000000001
+     },
+     {
+      "path": "ordner2/notiz-2.md",
+      "mtime": 1700000000002
+     },
+     {
+      "path": "ordner3/notiz-3.md",
+      "mtime": 1700000000003
+     },
+     {
+      "path": "ordner4/notiz-4.md",
+      "mtime": 1700000000004
+     },
+     {
+      "path": "ordner5/notiz-5.md",
+      "mtime": 1700000000005
+     },
+     {
+      "path": "ordner6/notiz-6.md",
+      "mtime": 1700000000006
+     },
+     {
+      "path": "ordner0/notiz-7.md",
+      "mtime": 1700000000007
+     },
+     {
+      "path": "ordner1/notiz-8.md",
+      "mtime": 1700000000008
+     },
+     {
+      "path": "ordner2/notiz-9.md",
+      "mtime": 1700000000009
+     },
+     {
+      "path": "ordner3/notiz-10.md",
+      "mtime": 1700000000010
+     },
+     {
+      "path": "ordner4/notiz-11.md",
+      "mtime": 1700000000011
+     },
+     {
+      "path": "ordner5/notiz-12.md",
+      "mtime": 1700000000012
+     },
+     {
+      "path": "ordner6/notiz-13.md",
+      "mtime": 1700000000013
+     },
+     {
+      "path": "ordner0/notiz-14.md",
+      "mtime": 1700000000014
+     },
+     {
+      "path": "ordner1/notiz-15.md",
+      "mtime": 1700000000015
+     },
+     {
+      "path": "ordner2/notiz-16.md",
+      "mtime": 1700000000016
+     },
+     {
+      "path": "ordner3/notiz-17.md",
+      "mtime": 1700000000017
+     },
+     {
+      "path": "ordner4/notiz-18.md",
+      "mtime": 1700000000018
+     },
+     {
+      "path": "ordner5/notiz-19.md",
+      "mtime": 1700000000019
+     },
+     {
+      "path": "ordner6/notiz-20.md",
+      "mtime": 1700000000020
+     },
+     {
+      "path": "ordner0/notiz-21.md",
+      "mtime": 1700000000021
+     },
+     {
+      "path": "ordner1/notiz-22.md",
+      "mtime": 1700000000022
+     },
+     {
+      "path": "ordner2/notiz-23.md",
+      "mtime": 1700000000023
+     },
+     {
+      "path": "ordner3/notiz-24.md",
+      "mtime": 1700000000024
+     },
+     {
+      "path": "ordner4/notiz-25.md",
+      "mtime": 1700000000025
+     },
+     {
+      "path": "ordner5/notiz-26.md",
+      "mtime": 1700000000026
+     },
+     {
+      "path": "ordner6/notiz-27.md",
+      "mtime": 1700000000027
+     },
+     {
+      "path": "ordner0/notiz-28.md",
+      "mtime": 1700000000028
+     },
+     {
+      "path": "ordner1/notiz-29.md",
+      "mtime": 1700000000029
+     }
+    ],
+    7
+   ],
+   "expected": [
+    {
+     "path": "ordner3/notiz-10.md",
+     "mtime": 1700000000010
+    },
+    {
+     "path": "ordner6/notiz-6.md",
+     "mtime": 1700000000006
+    },
+    {
+     "path": "ordner5/notiz-12.md",
+     "mtime": 1700000000012
+    },
+    {
+     "path": "ordner1/notiz-8.md",
+     "mtime": 1700000000008
+    },
+    {
+     "path": "ordner3/notiz-17.md",
+     "mtime": 1700000000017
+    },
+    {
+     "path": "ordner3/notiz-3.md",
+     "mtime": 1700000000003
+    },
+    {
+     "path": "ordner1/notiz-22.md",
+     "mtime": 1700000000022
+    },
+    {
+     "path": "ordner1/notiz-29.md",
+     "mtime": 1700000000029
+    },
+    {
+     "path": "ordner0/notiz-21.md",
+     "mtime": 1700000000021
+    },
+    {
+     "path": "ordner4/notiz-11.md",
+     "mtime": 1700000000011
+    },
+    {
+     "path": "ordner0/notiz-0.md",
+     "mtime": 1700000000000
+    },
+    {
+     "path": "ordner4/notiz-18.md",
+     "mtime": 1700000000018
+    },
+    {
+     "path": "ordner1/notiz-15.md",
+     "mtime": 1700000000015
+    },
+    {
+     "path": "ordner2/notiz-2.md",
+     "mtime": 1700000000002
+    },
+    {
+     "path": "ordner2/notiz-23.md",
+     "mtime": 1700000000023
+    },
+    {
+     "path": "ordner3/notiz-24.md",
+     "mtime": 1700000000024
+    },
+    {
+     "path": "ordner5/notiz-19.md",
+     "mtime": 1700000000019
+    },
+    {
+     "path": "ordner6/notiz-27.md",
+     "mtime": 1700000000027
+    },
+    {
+     "path": "ordner0/notiz-7.md",
+     "mtime": 1700000000007
+    },
+    {
+     "path": "ordner4/notiz-25.md",
+     "mtime": 1700000000025
+    },
+    {
+     "path": "ordner0/notiz-28.md",
+     "mtime": 1700000000028
+    },
+    {
+     "path": "ordner1/notiz-1.md",
+     "mtime": 1700000000001
+    },
+    {
+     "path": "ordner5/notiz-5.md",
+     "mtime": 1700000000005
+    },
+    {
+     "path": "ordner2/notiz-9.md",
+     "mtime": 1700000000009
+    },
+    {
+     "path": "ordner4/notiz-4.md",
+     "mtime": 1700000000004
+    },
+    {
+     "path": "ordner6/notiz-13.md",
+     "mtime": 1700000000013
+    },
+    {
+     "path": "ordner6/notiz-20.md",
+     "mtime": 1700000000020
+    },
+    {
+     "path": "ordner5/notiz-26.md",
+     "mtime": 1700000000026
+    },
+    {
+     "path": "ordner2/notiz-16.md",
+     "mtime": 1700000000016
+    },
+    {
+     "path": "ordner0/notiz-14.md",
+     "mtime": 1700000000014
+    }
+   ]
+  },
+  {
+   "name": "outside the BMP and umlauts",
+   "args": [
+    [
+     {
+      "path": "Notizen/Übersicht 🙂.md",
+      "mtime": 1
+     },
+     {
+      "path": "Notizen/ä.md",
+      "mtime": 2
+     },
+     {
+      "path": "Notizen/z.md",
+      "mtime": 3
+     },
+     {
+      "path": "Notizen/😀.md",
+      "mtime": 4
+     }
+    ],
+    20260903
+   ],
+   "expected": [
+    {
+     "path": "Notizen/Übersicht 🙂.md",
+     "mtime": 1
+    },
+    {
+     "path": "Notizen/ä.md",
+     "mtime": 2
+    },
+    {
+     "path": "Notizen/😀.md",
+     "mtime": 4
+    },
+    {
+     "path": "Notizen/z.md",
+     "mtime": 3
+    }
+   ]
+  },
+  {
+   "name": "empty list",
+   "args": [
+    [],
+    20260903
+   ],
+   "expected": []
+  },
+  {
+   "name": "hash tie, code-unit order",
+   "args": [
+    [
+     {
+      "path": "a209804.md",
+      "mtime": 1
+     },
+     {
+      "path": "Z27609.md",
+      "mtime": 2
+     }
+    ],
+    20260903
+   ],
+   "expected": [
+    {
+     "path": "Z27609.md",
+     "mtime": 2
+    },
+    {
+     "path": "a209804.md",
+     "mtime": 1
+    }
+   ]
+  }
+ ],
+ "probeQuery": [
+  {
+   "name": "200 units is too short",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "expected": null
+  },
+  {
+   "name": "201 units is the shortest candidate",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "name": "800 units is cut to 300",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "name": "801 units is too long",
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "expected": null
+  },
+  {
+   "name": "frontmatter is stripped",
+   "args": [
+    "---\na: 1\n---\nyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+   ],
+   "expected": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+   "name": "CRLF frontmatter is stripped",
+   "args": [
+    "---\r\na: 1\r\n---\r\nyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+   ],
+   "expected": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+   "name": "surrogate pairs count as two units",
+   "args": [
+    "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   ],
+   "expected": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+  },
+  {
+   "name": "whitespace is trimmed before measuring: 199 wrapped is too short",
+   "args": [
+    "\n\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  \n\n"
+   ],
+   "expected": null
+  },
+  {
+   "name": "whitespace is trimmed before measuring: 250 wrapped gives the trimmed text",
+   "args": [
+    "\n\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  \n\n"
+   ],
+   "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "name": "NBSP and ideographic space are trimmed too (JS trim, not ASCII-only)",
+   "args": [
+    " 　xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx　 "
+   ],
+   "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "name": "strict false is the default",
+   "args": [
+    "kurz",
+    {
+     "strict": false
+    }
+   ],
+   "expected": null
+  },
+  {
+   "name": "frontmatter only",
+   "args": [
+    "---\na: 1\n---\n"
+   ],
+   "expected": null
+  }
+ ]
+}

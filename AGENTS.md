@@ -6,7 +6,7 @@
 
 ## Project character
 
-**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction (plan 0.1.0): Block A is done — scaffold and options, roots and modes, the index reader, the embedder, `related` and `search`, the panel, the commands, `<Plug>` mappings and `:checkhealth`. Still to come: the own index writer (`reindex`, `update`, `stop`), the self-find probe and the full docs.
+**note-retrieval.nvim** shows related notes and does semantic search over a Markdown vault. It reads the Obsidian index of vault-rag read-only, or keeps its own in the same format (VRIX). Published for any Neovim user; no tie to Obsidian or to one person's setup. Under construction (plan 0.1.0): Block A is done — scaffold and options, roots and modes, the index reader, the embedder, `related` and `search`, the panel, the commands, `<Plug>` mappings and `:checkhealth`. Block B so far: the own index writer (`indexer.lua`, Lua API only). Still to come: the commands `reindex`/`stop`, `update` on save, the self-find probe and the full docs.
 
 ## Architecture
 
@@ -17,6 +17,7 @@
 | `lua/note_retrieval/embedder.lua` | server and model of a run (option, else remembered, else asked; in mode `obsidian` the model must be the index header's, else `model-mismatch`), one query embedding with no instruction in front, the adapter for the kit's `live_indexer`; callbacks only |
 | `lua/note_retrieval/state.lua` | the model chosen per server, `stdpath('state')/note-retrieval/state.json` |
 | `lua/note_retrieval/index.lua`, `search.lua` | the index in memory (loaded on first need, reloaded when the file changes, never written in mode `obsidian`); `related` from a note's row, `search` with one embedding call, `pick` |
+| `lua/note_retrieval/indexer.lua` | the writer of the own index (mode `eigen` only): one indexer per root, full reindex with progress (`status`, `statusline`, `stop`), every write behind mode check (read fresh), lock under `stdpath('state')`, backup (first write of a session, before a reindex) and the kit's guards; errors are `{ kind, message }` values |
 | `lua/note_retrieval/links.lua`, `panel.lua` | link targets and how a link is written (`link_format` `wiki`\|`markdown`); the panel with the related notes |
 | `lua/note_retrieval/command.lua`, `status.lua`, `messages.lua`, `health.lua`, `plugin/note_retrieval.lua` | `:NoteRetrieval {related\|search\|status\|model\|reset}` and the `<Plug>` mappings; the state shown by `status`; one sentence with the next step for every error value (strings of `related` and the index, `{ kind }` tables of `search` and the embedder); `:checkhealth note_retrieval`; the plugin file loads only the command and the mappings, no index is read at start |
 | `lua/note_retrieval/kit/` | vendored from `nvim-kit` (`VENDOR.json`) — never edit |

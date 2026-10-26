@@ -1,0 +1,571 @@
+local T = require('note_retrieval.kit.test')
+local indexer = require('note_retrieval.indexer')
+local index = require('note_retrieval.index')
+local lock = require('note_retrieval.kit.lock')
+local vrix = require('note_retrieval.kit.vrix')
+local wait = require('note_retrieval.kit.wait')
+
+local uv = vim.uv or vim.loop
+
+local DIM = 4
+
+-- A folder with `n` notes; `fn(root, cfg)`. The indexers are forgotten before and after, the
+-- folder is removed (a read-only index folder made by a case is opened up first).
+local function with_vault(n, fn, cfg_extra)
+  local base = vim.fn.tempname()
+  vim.fn.mkdir(base .. '/vault', 'p')
+  local root = uv.fs_realpath(base .. '/vault')
+  for i = 1, n do
+    local f = assert(io.open(('%s/note-%03d.md'):format(root, i), 'wb'))
+    f:write(('# Note %d\n\nsome words about note number %d'):format(i, i))
+    f:close()
+  end
+  local cfg = vim.tbl_extend('force', { exclude = {} }, cfg_extra or {})
+  indexer.reset()
+  index.reset()
+  local ok, err = pcall(fn, root, cfg)
+  indexer.reset()
+  index.reset()
+  vim.fn.system({ 'chmod', '-R', 'u+rwx', base })
+  vim.fn.delete(base, 'rf')
+  assert(ok, err)
+end
+
+-- An in-memory storage: `files`, the paths written in order, an optional write failure.
+local function mem_storage()
+  local s = { files = {}, writes = {}, ver = {}, fail = false }
+  s.exists = function(p)
+    return s.files[p] ~= nil
+  end
+  s.read = function(p)
+    return s.files[p]
+  end
+  s.write = function(p, bytes)
+    if s.fail then
+      error('disk full', 0)
+    end
+    s.files[p] = bytes
+    s.writes[#s.writes + 1] = p
+    s.ver[p] = (s.ver[p] or 0) + 1
+  end
+  s.mkdir = function() end
+  s.stat = function(p)
+    return s.files[p] and { size = #s.files[p], v = s.ver[p] or 0 } or nil
+  end
+  return s
+end
+
+local function writes_to(storage, path)
+  local n = 0
+  for _, p in ipairs(storage.writes) do
+    if p == path then
+      n = n + 1
+    end
+  end
+  return n
+end
+
+-- An embedding source double. mode: 'sync' answers at once, 'defer' on the main loop a few ms
+-- later, 'fast' from a `vim.uv` timer callback, 'fail' with an error. `calls` counts requests.
+local function embedder(mode)
+  local e = { calls = 0 }
+  e.fn = function(texts, cb)
+    e.calls = e.calls + 1
+    local vecs = {}
+    for i, t in ipairs(texts) do
+      vecs[i] = { 1 + (#t % 5), 2, 3, 4 }
+    end
+    if mode == 'fail' then
+      return cb(nil, 'boom: the server went away')
+    elseif mode == 'defer' then
+      vim.defer_fn(function()
+        cb(vecs)
+      end, 3)
+    elseif mode == 'fast' then
+      local timer = uv.new_timer()
+      timer:start(1, 0, function()
+        timer:close()
+        cb(vecs)
+      end)
+    else
+      cb(vecs)
+    end
+  end
+  return e
+end
+
+local function new_ix(root, cfg, storage, emb, model)
+  return assert(indexer.for_root(root, {
+    embedder = emb.fn,
+    model = model or 'm1',
+    dim = DIM,
+    cfg = cfg,
+    storage = storage,
+  }))
+end
+
+local function reindex(ix, opts)
+  local res, answered = wait.result(function(done)
+    ix:reindex(function(report, err)
+      done({ report, err })
+    end, opts)
+  end, 20000)
+  assert(answered, 'the reindex did not finish')
+  return res[1], res[2]
+end
+
+local function update(ix, path, text)
+  local res, answered = wait.result(function(done)
+    ix.live:update(path, text, nil, done)
+  end, 5000)
+  assert(answered and res == 'indexed', 'update failed')
+end
+
+local function decode(bytes)
+  return assert(vrix.decode(bytes))
+end
+
+local function sha(path)
+  local f = assert(io.open(path, 'rb'))
+  local s = f:read('*a')
+  f:close()
+  return vim.fn.sha256((s:gsub('.', function(c)
+    return ('%02x'):format(c:byte())
+  end)))
+end
+
+T.case('for_root: one indexer per root, however the path is spelled', function()
+  with_vault(1, function(root, cfg)
+    local ix = new_ix(root, cfg, mem_storage(), embedder('sync'))
+    T.ok(indexer.for_root(root .. '/') == ix, 'a trailing slash is the same root')
+    T.ok(indexer.for_root(root) == ix, 'a call without options returns the indexer')
+    -- counter: a root without an indexer and without options gets none
+    T.eq((indexer.for_root(root .. '/other')), nil)
+  end)
+end)
+
+T.case('reindex: every note gets a row and its stamp, taken from the file', function()
+  with_vault(5, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    local seen = {}
+    local report, err = reindex(ix, {
+      on_progress = function(done, _, total)
+        seen[#seen + 1] = { done, total, indexer.status(root).running, indexer.statusline(root) }
+      end,
+    })
+    T.eq(err, nil)
+    T.eq(report.added, 5)
+    local d = decode(st.files[ix.path])
+    T.eq(#d.paths, 5)
+    T.eq(d.manifest.embedding_model, 'm1')
+    for i, path in ipairs(d.paths) do
+      local fs = assert(uv.fs_stat(root .. '/' .. path))
+      T.eq(d.stamps[i], { fs.mtime.sec * 1000 + math.floor(fs.mtime.nsec / 1e6), fs.size })
+    end
+    -- progress was readable while the run was going, and is gone after it
+    T.eq(seen[#seen], { 5, 5, true, 'indexing 5/5' })
+    T.eq(indexer.status(root).running, false)
+    T.eq(indexer.statusline(root), '')
+    T.eq(indexer.status(root).lock.state, 'free')
+    T.eq(indexer.status(root).report.added, 5)
+  end)
+end)
+
+T.case('reindex: a cancel keeps every note it did not reach', function()
+  with_vault(70, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('defer'))
+    local _, err = reindex(ix)
+    T.eq(err, nil)
+    T.eq(decode(st.files[ix.path]).manifest.count, 70)
+    local stopped = false
+    local report, err2 = reindex(ix, {
+      on_progress = function()
+        if not stopped then
+          stopped = true
+          T.eq(indexer.stop(root), true)
+        end
+      end,
+    })
+    T.eq(err2, nil)
+    T.eq(report.cancelled, true)
+    T.eq(decode(st.files[ix.path]).manifest.count, 70)
+    T.eq(ix.live:note_count(), 70)
+    T.eq(indexer.stop(root), false)
+  end)
+end)
+
+T.case('persist: a lock held by another Neovim is reported with its age and nothing is written', function()
+  with_vault(2, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    update(ix, 'a.md', '# a\n\nsome text')
+    local other = assert(lock.acquire(ix.files.lock))
+    T.eq(indexer.status(root).lock.state, 'other')
+    local ok, err = ix:persist()
+    T.eq(ok, nil)
+    T.eq(err.kind, 'locked')
+    T.eq(type(err.age), 'number')
+    T.ok(err.message:find('another Neovim holds the lock', 1, true), err.message)
+    T.eq(#st.writes, 0)
+    other.release()
+    T.eq(ix:persist(), true)
+    T.eq(#st.writes, 1)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+  end)
+end)
+
+T.case('persist: a lock left behind by a dead process is taken over', function()
+  with_vault(2, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    update(ix, 'a.md', '# a\n\nsome text')
+    vim.fn.mkdir(vim.fs.dirname(ix.files.lock), 'p')
+    local f = assert(io.open(ix.files.lock, 'wb'))
+    f:write('99999 2026-01-01T00:00:00\n')
+    f:close()
+    local old = os.time() - 7200
+    assert(uv.fs_utime(ix.files.lock, old, old))
+    T.eq(indexer.status(root).lock.state, 'stale')
+    T.eq(ix:persist(), true)
+    T.eq(#st.writes, 1)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+  end)
+end)
+
+T.case('backup: before the first write of a session and before a reindex, not on every save', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local first = new_ix(root, cfg, st, embedder('sync'))
+    reindex(first)
+    T.eq(st.files[first.files.backup], nil) -- nothing there to back up yet
+    local built = st.files[first.path]
+    indexer.reset(root) -- a new session on the index that is there
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    for i = 1, 3 do
+      update(ix, 'extra-' .. i .. '.md', '# x\n\nnote ' .. i)
+      T.eq(ix:persist(), true)
+    end
+    T.eq(writes_to(st, ix.files.backup), 1)
+    T.eq(st.files[ix.files.backup], built)
+    local before_reindex = st.files[ix.path]
+    reindex(ix)
+    T.eq(writes_to(st, ix.files.backup), 2)
+    T.eq(st.files[ix.files.backup], before_reindex)
+    -- a save after that one makes no third copy
+    update(ix, 'again.md', '# x\n\nagain')
+    T.eq(ix:persist(), true)
+    T.eq(writes_to(st, ix.files.backup), 2)
+  end)
+end)
+
+T.case('persist: a write error is a value, the old container stays and the lock is released', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    local before = st.files[ix.path]
+    update(ix, 'extra.md', '# x\n\nmore')
+    st.fail = true
+    local ok, err = ix:persist()
+    T.eq(ok, nil)
+    T.eq(err.kind, 'write-failed')
+    T.ok(err.message:find('disk full', 1, true), err.message)
+    T.eq(st.files[ix.path], before)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+    T.eq(indexer.status(root).last_error.kind, 'write-failed')
+    st.fail = false
+    T.eq(ix:persist(), true)
+    T.eq(indexer.status(root).last_error, nil)
+  end)
+end)
+
+T.case('reindex: a failing final write reaches the caller with the report', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    st.fail = true
+    local report, err = reindex(ix)
+    T.eq(report.added, 3)
+    T.eq(err.kind, 'write-failed')
+    T.eq(st.files[ix.path], nil)
+    T.eq(indexer.status(root).last_error.kind, 'write-failed')
+  end)
+end)
+
+T.case(
+  'model change: a live write is refused in words that name the reindex, a reindex goes through',
+  function()
+    with_vault(3, function(root, cfg)
+      local st = mem_storage()
+      local ix = new_ix(root, cfg, st, embedder('sync'))
+      reindex(ix)
+      local before = st.files[ix.path]
+      local again =
+        assert(indexer.for_root(root, { embedder = embedder('sync').fn, model = 'm2', dim = DIM }))
+      T.ok(again == ix, 'still the one indexer')
+      T.eq(ix.model, 'm2')
+      update(ix, 'extra.md', '# x\n\nmore')
+      local ok, err = ix:persist()
+      T.eq(ok, nil)
+      T.eq(err.kind, 'model-mismatch')
+      T.ok(err.message:find(':NoteRetrieval reindex', 1, true), err.message)
+      T.eq(st.files[ix.path], before)
+      T.eq(reindex(ix).added, 3)
+      T.eq(decode(st.files[ix.path]).manifest.embedding_model, 'm2')
+    end)
+  end
+)
+
+T.case('dim change: the vectors in memory are not taken over, a live write is refused', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    local before = st.files[ix.path]
+    assert(indexer.for_root(root, { embedder = embedder('sync').fn, model = 'm1', dim = 8 }))
+    local ok, err = ix:persist()
+    T.eq(ok, nil)
+    T.eq(err.kind, 'not-ready')
+    T.ok(err.message:find(':NoteRetrieval reindex', 1, true), err.message)
+    T.eq(st.files[ix.path], before)
+  end)
+end)
+
+T.case('a run keeps Neovim responsive between two embedder calls', function()
+  with_vault(70, function(root, cfg)
+    local function ticks_during(mode)
+      indexer.reset(root)
+      local ix = new_ix(root, cfg, mem_storage(), embedder(mode))
+      local ticks = 0
+      local timer = uv.new_timer()
+      timer:start(
+        0,
+        1,
+        vim.schedule_wrap(function()
+          ticks = ticks + 1
+        end)
+      )
+      reindex(ix)
+      timer:stop()
+      timer:close()
+      return ticks
+    end
+    T.ok(ticks_during('defer') >= 3, 'a timer must run while the embedder is being waited for')
+    -- the control: an embedder that answers at once leaves no gap, so the measurement can fail
+    T.eq(ticks_during('sync'), 0)
+  end)
+end)
+
+T.case('mode flip: a root that turns into an Obsidian vault is not written to', function()
+  with_vault(3, function(root, cfg)
+    local obsidian_index = root .. '/_idx/index.bin'
+    local ix = new_ix(root, cfg, nil, embedder('sync'), 'm1')
+    T.eq(ix.path, obsidian_index)
+    -- the Obsidian plugin appears after the indexer was made, with its index in the same folder
+    vim.fn.mkdir(root .. '/.obsidian/plugins/vault-retrieval', 'p')
+    vim.fn.mkdir(root .. '/_idx', 'p')
+    local f = assert(io.open(obsidian_index, 'wb'))
+    f:write('not ours')
+    f:close()
+    local before = sha(obsidian_index)
+    update(ix, 'extra.md', '# x\n\nmore')
+    local ok, err = ix:persist()
+    T.eq(ok, nil)
+    T.eq(err.kind, 'not-eigen')
+    T.ok(err.message:find('belongs to the Obsidian plugin', 1, true), err.message)
+    local report, rerr = reindex(ix)
+    T.eq(report, nil)
+    T.eq(rerr.kind, 'not-eigen')
+    T.eq(sha(obsidian_index), before)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+    -- and a root that is Obsidian's gets no new indexer
+    indexer.reset(root)
+    local none, why = indexer.for_root(root, { embedder = embedder('sync').fn, model = 'm1', cfg = cfg })
+    T.eq(none, nil)
+    T.ok(why:find('Obsidian', 1, true), why)
+  end, { index_dir = '_idx' })
+end)
+
+T.case('reindex: an embedder that answers from a fast callback does not break lock or write', function()
+  with_vault(270, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('fast'))
+    local in_fast
+    local res, answered = wait.result(function(done)
+      ix:reindex(function(report, err)
+        in_fast = vim.in_fast_event()
+        done({ report, err })
+      end)
+    end, 30000)
+    assert(answered, 'the reindex did not finish')
+    T.eq(res[2], nil)
+    T.eq(res[1].added, 270)
+    T.eq(in_fast, false)
+    T.eq(#ix.warnings, 0) -- the intermediate state at 250 notes was written too
+    T.ok(#st.writes >= 2, 'an intermediate state and the final one')
+    T.eq(decode(st.files[ix.path]).manifest.count, 270)
+  end)
+end)
+
+T.case('reindex: notes that failed to embed do not replace a good index with a thin one', function()
+  with_vault(70, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    local before, writes = st.files[ix.path], #st.writes
+    ix.embedder = embedder('fail').fn
+    local report, err = reindex(ix)
+    T.eq(#report.failed, 70)
+    T.eq(err.kind, 'incomplete')
+    T.ok(err.message:find('index on disk was not replaced', 1, true), err.message)
+    T.eq(st.files[ix.path], before)
+    T.eq(#st.writes, writes)
+    T.eq(ix.live:note_count(), 70) -- memory was read from disk again
+  end)
+end)
+
+T.case('reindex: a vault without notes leaves the index alone', function()
+  with_vault(0, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    local report, err = reindex(ix)
+    T.eq(report, nil)
+    T.eq(err.kind, 'no-notes')
+    T.eq(#st.writes, 0)
+  end)
+end)
+
+T.case('reindex: a second one while one runs is refused', function()
+  with_vault(70, function(root, cfg)
+    local ix = new_ix(root, cfg, mem_storage(), embedder('defer'))
+    local second
+    reindex(ix, {
+      on_progress = function()
+        if not second then
+          ix:reindex(function(report, err)
+            second = { report, err }
+          end)
+        end
+      end,
+    })
+    T.eq(second[1], nil)
+    T.eq(second[2].kind, 'running')
+  end)
+end)
+
+T.case('reset: a running reindex keeps its indexer, an idle one is forgotten', function()
+  with_vault(70, function(root, cfg)
+    local ix = new_ix(root, cfg, mem_storage(), embedder('defer'))
+    local kept
+    reindex(ix, {
+      on_progress = function()
+        kept = kept or indexer.reset()
+      end,
+    })
+    T.eq(kept, { root })
+    T.ok(indexer.for_root(root) == ix, 'the indexer of the run is still the one')
+    T.eq(ix.live:note_count(), 70)
+    T.eq(indexer.reset(), {})
+    T.eq((indexer.for_root(root)), nil)
+  end)
+end)
+
+T.case('sync and changed: another writer is noticed, never overwritten', function()
+  with_vault(5, function(root, cfg)
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    reindex(ix)
+    -- another Neovim writes its own, smaller index of the same format
+    local base = vim.fn.tempname() .. '/v'
+    vim.fn.mkdir(base, 'p')
+    for i = 1, 3 do
+      local f = assert(io.open(('%s/other-%d.md'):format(base, i), 'wb'))
+      f:write('# other\n\nwords ' .. i)
+      f:close()
+    end
+    local st2 = mem_storage()
+    local other = indexer.for_root(
+      base,
+      { embedder = embedder('sync').fn, model = 'm1', dim = DIM, cfg = cfg, storage = st2 }
+    )
+    reindex(other)
+    local theirs = st2.files[other.path]
+    st.write(ix.path, theirs)
+    update(ix, 'extra.md', '# x\n\nmore')
+    local writes = #st.writes
+    local ok, err = ix:persist()
+    T.eq(ok, nil)
+    T.eq(err.kind, 'changed')
+    T.eq(#st.writes, writes)
+    T.eq(st.files[ix.path], theirs)
+    T.eq(ix:sync(), true)
+    T.eq(ix.live:note_count(), 3)
+    T.eq(ix:sync(), true) -- unchanged now: nothing is read again
+    vim.fn.delete(vim.fs.dirname(base), 'rf')
+  end)
+end)
+
+T.case('real file system: reindex, load back, backup, and a read-only folder keeps the old file', function()
+  with_vault(4, function(root, cfg)
+    local ix = new_ix(root, cfg, nil, embedder('sync'))
+    T.eq(ix.path, root .. '/_nr/index.bin')
+    local report, err = reindex(ix)
+    T.eq(err, nil)
+    T.eq(report.added, 4)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+    T.eq(uv.fs_stat(ix.files.backup), nil)
+    -- the reader of the plugin reads what the writer wrote; the index folder is not a note
+    local loaded = assert(index.load(root, cfg))
+    T.eq(loaded.index.count, 4)
+    T.eq(loaded.mode, 'eigen')
+    T.eq(loaded.stamps[1][2] > 0, true)
+    -- a second reindex backs up the first
+    local first = sha(ix.path)
+    T.eq(select(2, reindex(ix)), nil)
+    T.ok(uv.fs_stat(ix.files.backup) ~= nil, 'the backup is there')
+    T.eq(sha(ix.files.backup), first)
+    -- a folder that cannot be written to
+    local dir = vim.fs.dirname(ix.path)
+    assert(uv.fs_chmod(dir, tonumber('500', 8)))
+    if uv.fs_access(dir, 'W') then
+      assert(uv.fs_chmod(dir, tonumber('700', 8)))
+      return -- running as a user who can write anywhere: nothing to measure
+    end
+    local before = sha(ix.path)
+    update(ix, 'extra.md', '# x\n\nmore')
+    local ok, werr = ix:persist()
+    T.eq(ok, nil)
+    T.eq(werr.kind, 'write-failed')
+    T.eq(sha(ix.path), before)
+    T.eq(uv.fs_stat(ix.files.lock), nil)
+    assert(uv.fs_chmod(dir, tonumber('700', 8)))
+    T.eq(select(2, reindex(ix)), nil)
+  end, { index_dir = '_nr' })
+end)
+
+T.case(':NoteRetrieval reset: names a running reindex and leaves it alone', function()
+  with_vault(70, function(root, cfg)
+    local ix = new_ix(root, cfg, mem_storage(), embedder('defer'))
+    local seen = {}
+    local notify = vim.notify
+    reindex(ix, {
+      on_progress = function()
+        if #seen == 0 then
+          vim.notify = function(msg)
+            seen[#seen + 1] = msg
+          end
+          require('note_retrieval.command').reset()
+          vim.notify = notify
+        end
+      end,
+    })
+    vim.notify = notify
+    T.ok(seen[1]:find('a reindex is running in ' .. root .. ' and was left alone', 1, true), seen[1])
+    T.ok(indexer.for_root(root) == ix, 'the indexer survived the reset')
+    -- counter: with nothing running the message says nothing about a run
+    require('note_retrieval.command').reset()
+    T.eq((indexer.for_root(root)), nil)
+  end)
+end)

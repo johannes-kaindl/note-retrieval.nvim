@@ -83,7 +83,12 @@ end
 --- reads them again (after editing data.json of the Obsidian plugin, say).
 function M.reset()
   require('note_retrieval.index').reset()
-  vim.notify('note-retrieval: forgot the loaded index and vault settings', vim.log.levels.INFO)
+  -- An indexer whose reindex is running keeps its state: forgetting it would lose the run.
+  local kept = require('note_retrieval.indexer').reset()
+  local note = #kept > 0
+      and ('; a reindex is running in %s and was left alone'):format(table.concat(kept, ', '))
+    or ''
+  vim.notify('note-retrieval: forgot the loaded index and vault settings' .. note, vim.log.levels.INFO)
 end
 
 --- :NoteRetrieval model — list the models of the first server that answers and remember the choice.

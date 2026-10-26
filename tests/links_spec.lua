@@ -182,3 +182,28 @@ T.case(
     T.eq(links._builds - before, 3)
   end
 )
+
+T.case(
+  'targets: percent escapes decode to bytes, a bad escape stays, whitespace around is dropped',
+  function()
+    -- UTF-8 as bytes (%C3%A4 is a-umlaut), a space, an escape that is no hex pair, a lone percent
+    T.eq(targets('[a](Caf%C3%A9%20Note.md) [b](50%zz.md) [c](100%.md) [d](<  sp%20ace.md  >)'), {
+      'markdown:Café Note.md',
+      'markdown:50%zz.md',
+      'markdown:100%.md',
+      'markdown:  sp ace.md  ',
+    })
+    T.eq(targets('[[  Spaced  |alias]] [[Tab\tbed\t]]'), { 'wiki:Spaced', 'wiki:Tab\tbed' })
+  end
+)
+
+T.case('targets: counter-check, a decoder that skips UTF-8 or eats a bad escape fails the case', function()
+  local ok = pcall(function()
+    T.eq(targets('[a](Caf%C3%A9.md)'), { 'markdown:Caf%C3%A9.md' })
+  end)
+  T.eq(ok, false)
+  ok = pcall(function()
+    T.eq(targets('[b](50%zz.md)'), { 'markdown:50.md' })
+  end)
+  T.eq(ok, false)
+end)

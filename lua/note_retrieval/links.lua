@@ -26,16 +26,6 @@ local function without_code(text)
   return table.concat(out, '\n')
 end
 
-local function decode(s)
-  return (s:gsub('%%(%x%x)', function(h)
-    return string.char(tonumber(h, 16))
-  end))
-end
-
-local function trim(s)
-  return (s:gsub('^%s+', ''):gsub('%s+$', ''))
-end
-
 --- The link targets in `text`, in the order they stand: a list of `{ kind = 'wiki'|'markdown', target }`.
 --- `[[Target|Alias#Section]]` gives `Target` (alias and section dropped; an embed `![[Target]]`
 --- counts as a link; `[[#Section]]` points at the note itself and is left out). `[Text](path.md)`
@@ -48,16 +38,16 @@ function M.targets(text)
   local found = {}
   for pos, inner in clean:gmatch('()%[%[([^%[%]\n]-)%]%]') do
     -- `\|` is how a table cell writes the bar of an alias
-    local target = trim(trim(inner:match('^[^|#^]*')):gsub('\\+$', ''))
+    local target = vim.trim((vim.trim(inner:match('^[^|#^]*')):gsub('\\+$', '')))
     if target ~= '' then
       found[#found + 1] = { pos = pos, kind = 'wiki', target = target }
     end
   end
   for pos, inner in clean:gmatch('()%[[^%[%]\n]*%]%(([^()\n]*)%)') do
-    local target = trim(inner)
+    local target = vim.trim(inner)
     local angled = target:match('^<(.*)>$')
     target = angled or target:match('^%S+') or ''
-    target = decode(target:match('^[^#]*'))
+    target = vim.uri_decode(target:match('^[^#]*'))
     if target ~= '' and not target:find('^%a[%w+.-]*:') then
       found[#found + 1] = { pos = pos, kind = 'markdown', target = target }
     end

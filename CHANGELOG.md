@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-27
+
 ### Added
 - The own index writer and its commands: `:NoteRetrieval reindex` (full build in the background), `update` (the delta against the notes, written once), `stop` (ends a reindex; it does not act on a running `update`), update on save (debounced 1000 ms, own mode only, option `index_on_save`; the first save of a session prints a one-time hint until `update` has started the indexer), and `reset` also forgets the attach, the waiting batch and the hint. The index file is written under a lock, with a backup and the guards of the index core; the Obsidian index is never written.
 - `:NoteRetrieval probe [n] [--json]` and the option `probe_auto` (a probe of 8 notes after a full reindex): notes of 201 to 800 UTF-16 code units are searched with their own first 300 units and should come back at rank 0; read-only, so it works on an Obsidian index too.

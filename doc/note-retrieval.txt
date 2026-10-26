@@ -1,6 +1,6 @@
 *note-retrieval.txt*  Related notes and semantic search over a Markdown vault
 
-This manual is a stub: the sections below are final for 0.1.0, the full text follows with the release.
+Related notes and semantic search over a folder of Markdown notes. The plugin reads one index of the vault and writes only its own: the index of the Obsidian plugin Vault Retrieval is only read (mode `obsidian`), otherwise the plugin keeps its own index (shown as `eigen` by `:NoteRetrieval status`). Pages outside Neovim: docs/README.md in the plugin's repository.
 
 ==============================================================================
 COMMANDS                                                *:NoteRetrieval*
@@ -18,10 +18,33 @@ COMMANDS                                                *:NoteRetrieval*
 	Choose the embedding model of the first server that answers; the choice is remembered per server. An index of the Obsidian plugin decides the model of a search by itself.
 
 :NoteRetrieval probe [n] [--json]
-	Check that the index finds what it holds: up to `n` notes (default 40) with a text of 201 to 800 characters are searched with the first 300 characters of their own text, one query after another, and each should come back first. Shows `x/n on rank 0` and the misses; `--json` prints one JSON line (`n`, `hits`, `rate`, `failures`, `seed`, `model`). It only reads, so it works on the index of the Obsidian plugin too.
+	Check that the index finds what it holds: up to `n` notes (default 40) whose text, without front matter and trimmed, is 201 to 800 UTF-16 code units long are searched with the first 300 units of their own text, one query after another, and each should come back first. Shows `x/n on rank 0` and the misses; `--json` prints one JSON line (`n`, `hits`, `rate`, `failures`, `seed`, `model`). It only reads, so it works on the index of the Obsidian plugin too.
+
+:NoteRetrieval reindex
+	Build the plugin's own index again from all notes, in the background; `:NoteRetrieval status` shows the progress. Only in the own mode: an index of the Obsidian plugin is never written, the command says so. Takes the model from |note-retrieval-option-embedding_model| or the remembered choice. After a full reindex a probe of 8 notes runs (see |note-retrieval-option-probe_auto|). A run in which some notes cannot be embedded writes the others and reports how many are missing; run it again to try them. A write that would leave less than half of the rows of the file is refused.
+
+:NoteRetrieval update
+	Bring the own index in line with the notes: embed notes that are new, newer on disk than their row, or whose row holds an all-zero vector, drop the rows of deleted notes, write once; in the background. A batch of saved notes that still waits is written first. Notes in folders that cannot be read keep their rows. The first step (walk of the vault and reload of the index) stalls Neovim for a moment, about 90 ms on 13000 notes. The guard `shrink` refuses an update that would drop more than half of the rows while the files exist; `:NoteRetrieval reindex` is the way out.
+
+:NoteRetrieval stop
+	Ask a running reindex to stop after the notes in flight; what it reached is written, the rest of the index is as it was. It does not act on a running update: it then reports that no reindex is running, and the update runs on.
 
 :NoteRetrieval reset
-	Forget the index and the vault settings held in memory; the next command reads them again, for example after editing `data.json` of the Obsidian plugin.
+	Forget the index, the vault settings, the attach to saves, the waiting batch of saved notes and the one-time hint held in memory; the next command reads them again, for example after editing `data.json` of the Obsidian plugin. A running reindex is left alone and the message says so.
+
+==============================================================================
+UPDATE ON SAVE                                           *note-retrieval-on-save*
+
+With |note-retrieval-option-index_on_save| (default true), saving a `*.md` note of a vault with an own index updates the index: after 1000 ms of quiet all notes saved in that window are embedded and written in one batch. Never in the mode `obsidian`. In a session where nothing has started an indexer yet (no update or reindex), a save only prints once per vault `saved notes are not indexed yet in this session; run :NoteRetrieval update once to start`; it never asks for a model. Quitting within a second of a save loses that batch; the next `:NoteRetrieval update` embeds the note.
+
+==============================================================================
+LIMITS                                                   *note-retrieval-limits*
+
+- The mark `changed since the index` in the panel is exact only for rows with a real stamp (modification time and size). Rows written by the Obsidian plugin have none; for them the panel says `may be stale, index from <date time>`, a lower bound: the file is newer than the index was built. Nothing re-stamps a row.
+- A write is refused, not merged, when another Neovim wrote the file between read and write (`changed`); run the command again.
+- The lock is taken per write, not for a whole reindex.
+- The picker of `:NoteRetrieval model` waits for all servers.
+- A query is embedded with no instruction in front, because the index holds vectors of the raw text of the notes.
 
 ==============================================================================
 MAPPINGS                                                 *note-retrieval-mappings*

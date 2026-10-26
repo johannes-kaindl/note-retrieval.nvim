@@ -80,3 +80,38 @@ T.case('every relative link in README.md points to a file that exists', function
   end
   T.eq(dead, {})
 end)
+
+T.case('README, the manual and the reference name every subcommand, option and <Plug> mapping', function()
+  local command = require('note_retrieval.command')
+  local function missing(file, words)
+    local text = read(file)
+    local out = {}
+    for _, w in ipairs(words) do
+      if not text:find(w, 1, true) then
+        out[#out + 1] = file .. ' lacks ' .. w
+      end
+    end
+    return out
+  end
+  local subs = vim.tbl_map(function(n)
+    return ':NoteRetrieval ' .. n
+  end, command.SUBCOMMANDS)
+  local plugs = { '<Plug>(note-retrieval-related)', '<Plug>(note-retrieval-search)' }
+  local gaps = {}
+  local function add(list)
+    vim.list_extend(gaps, list)
+  end
+  add(missing('README.md', subs))
+  add(missing('README.md', config.NAMES))
+  add(missing('README.md', plugs))
+  add(missing('doc/note-retrieval.txt', subs))
+  add(missing(
+    'docs/reference/commands.md',
+    vim.tbl_map(function(n)
+      return '| `' .. n .. '` |'
+    end, command.SUBCOMMANDS)
+  ))
+  add(missing('docs/reference/commands.md', plugs))
+  add(missing('docs/reference/options.md', config.NAMES))
+  T.eq(gaps, {})
+end)

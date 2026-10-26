@@ -8,7 +8,7 @@
 
 ## Documentation
 
-- `:help note-retrieval` — options (commands and mappings follow)
+- `:help note-retrieval` — commands (`:NoteRetrieval related|search|status|model|reset`), mappings (`<Plug>(note-retrieval-related)`, `<Plug>(note-retrieval-search)`), the Lua API and the options; `:checkhealth note_retrieval` diagnoses a setup
 
 ## License
 

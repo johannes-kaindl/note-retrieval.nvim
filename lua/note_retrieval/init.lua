@@ -20,4 +20,34 @@ function M.resolve()
   return config.resolve()
 end
 
+--- The notes closest to the meaning of `query`, as `cb(results)` (`{ path, score, title }`, best
+--- first) or `cb(nil, err)`; `err` is a table `{ kind, … }`, `require('note_retrieval.messages').text(err)`
+--- makes a sentence of it. `opts = { k, min_similarity, exclude, root }`; `root` defaults to the
+--- vault of the current note.
+---@param query string
+---@param opts? { k?: integer, min_similarity?: number, exclude?: string[], root?: string }
+---@param cb fun(results?: table[], err_or_warning?: table|string)
+function M.search(query, opts, cb)
+  opts = opts or {}
+  if not opts.root then
+    local root = require('note_retrieval.status').current_root()
+    opts = vim.tbl_extend('force', opts, { root = root })
+  end
+  require('note_retrieval.search').search(query, opts, cb)
+end
+
+--- The notes closest to the note at `path`, from its row in the index (no server call): a list of
+--- `{ path, score, title }`, or `nil, message`. `opts` as for `search`.
+---@param path string
+---@param opts? { k?: integer, min_similarity?: number, exclude?: string[], root?: string }
+function M.related(path, opts)
+  return require('note_retrieval.search').related(path, opts)
+end
+
+--- What the plugin knows about the vault of the current note: `{ root, mode, rows, model, age,
+--- endpoints, warning, problem, line }`, `line` one short line for a status line.
+function M.status()
+  return require('note_retrieval.status').collect()
+end
+
 return M

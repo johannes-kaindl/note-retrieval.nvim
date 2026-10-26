@@ -39,10 +39,14 @@ T.case('the manual has one tag per user command the plugin defines', function()
 end)
 
 T.case('the manual names every <Plug> mapping the plugin defines', function()
-  local want = {}
-  for _, m in ipairs(vim.api.nvim_get_keymap('n')) do
-    if m.lhs:find('^<Plug>%(note%-retrieval') then
-      want[#want + 1] = m.lhs
+  -- Every mode a mapping can be defined in: one defined for Visual mode only must be found too.
+  local seen, want = {}, {}
+  for _, mode in ipairs({ 'n', 'x', 'o', 'i' }) do
+    for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
+      if m.lhs:find('^<Plug>%(note%-retrieval') and not seen[m.lhs] then
+        seen[m.lhs] = true
+        want[#want + 1] = m.lhs
+      end
     end
   end
   table.sort(want)

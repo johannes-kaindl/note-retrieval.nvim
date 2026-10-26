@@ -1,6 +1,49 @@
 *note-retrieval.txt*  Related notes and semantic search over a Markdown vault
 
-This manual is a stub: the commands and mappings arrive with the plugin's features; the options are final for 0.1.0.
+This manual is a stub: the sections below are final for 0.1.0, the full text follows with the release.
+
+==============================================================================
+COMMANDS                                                *:NoteRetrieval*
+
+:NoteRetrieval related
+	Open or close the panel on the right with the notes related to the note you are in. It follows you from note to note and needs no server: the notes are read from the index. Keys in the panel: <CR> opens a note, `l` writes a link to it (see |note-retrieval-option-link_format|), `q` closes.
+
+:NoteRetrieval search [query]
+	Search the notes by meaning: the query is embedded once, the closest notes are listed, the one you pick opens. Without a query it asks for one.
+
+:NoteRetrieval status
+	Show the notes folder, the mode, the index, the number of notes, the model, the age of the index and the servers. The index and the settings of the vault are read once per session.
+
+:NoteRetrieval model
+	Choose the embedding model of the first server that answers; the choice is remembered per server. An index of the Obsidian plugin decides the model of a search by itself.
+
+:NoteRetrieval reset
+	Forget the index and the vault settings held in memory; the next command reads them again, for example after editing `data.json` of the Obsidian plugin.
+
+==============================================================================
+MAPPINGS                                                 *note-retrieval-mappings*
+
+The plugin sets no key of its own; map these (|<Plug>|) to keys you like.
+
+*<Plug>(note-retrieval-related)*
+  Normal mode: same as `:NoteRetrieval related`.
+
+*<Plug>(note-retrieval-search)*
+  Normal mode: same as `:NoteRetrieval search`. Visual mode: the selected text is the query.
+
+==============================================================================
+LUA API                                                  *note-retrieval-api*
+
+`require('note_retrieval').search(query, opts, cb)`
+  `cb(results)` or `cb(nil, err)`; results are `{ path, score, title }`, best first. `opts` is `{ k, min_similarity, exclude, root }`.
+
+`require('note_retrieval').related(path, opts)`
+  The same list for the note at `path`, read from the index (no server call), or `nil, message`.
+
+`require('note_retrieval').status()`
+  A table with `root`, `mode`, `rows`, `model`, `age`, `endpoints`, `warning`, `problem` and `line`, a short text for a status line.
+
+`:checkhealth note_retrieval` checks Neovim, `curl`, the notes folder, the index, the options and the servers, and says what to do about each problem.
 
 ==============================================================================
 OPTIONS                                                  *note-retrieval-options*

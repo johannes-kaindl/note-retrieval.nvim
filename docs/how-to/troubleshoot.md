@@ -18,7 +18,7 @@ Every error is one message starting with `note-retrieval:`, ending in the next s
 | The server refused the request. | Check the endpoint and the model name. |
 | The server answered with something that is no embedding. | Check that the endpoint speaks the OpenAI API (`/v1/embeddings`) and the model is an embedding model. |
 | The API key of this endpoint could not be read (api_key_env or api_key_cmd). | Check the variable in the environment Neovim started from. |
-| no row for this note in the index | The note is new, was left out, or the index is older than the note; `:NoteRetrieval update` in your own index. |
+| no row for this note in the index | The note is new, was left out, or the index is older than the note; `:NoteRetrieval update` embeds it in your own index (the message itself advises `:NoteRetrieval reindex`, which also works). |
 | The options are invalid | `:checkhealth note_retrieval` lists the problems. Invalid `endpoints` stop a run: text must not go to a server you did not set. |
 
 ## Messages of the writer (own index)

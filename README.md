@@ -4,13 +4,15 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
+`:NoteRetrieval related` opens the panel beside the note you are in. Example for `Baking/hydration.md` of the fixture vault in `tests/fixtures/vault/` (the notes are real, the scores are illustrative, not measured):
+
 ```text
-:NoteRetrieval related          panel with the notes closest in meaning to this one
-  0.82  Baking/hydration.md
-  0.74  Baking/sourdough-starter.md
-  0.61  Baking/oven-spring.md (changed since the index)
-:NoteRetrieval search crumb     notes by meaning, not by the word
+Related to Baking/hydration.md: 2 notes
+0.82  crumb-notes — Baking
+0.74  baking-day — Baking
 ```
+
+`:NoteRetrieval search <words>` lists notes by meaning, not by the word, in the same form: the score, the title, the folder.
 
 **Status:** 0.1.0 is in preparation, nothing is released yet. The plugin reads and, in its own mode, writes a note index; it never changes a note.
 
@@ -68,7 +70,7 @@ Options, set in `vim.g.note_retrieval` or `setup()`: `roots`, `endpoints`, `embe
 The plugin reads one of two indexes of a vault, and writes only one.
 
 - **Own index** (shown as `eigen` by `:NoteRetrieval status`): the plugin builds and updates `index.bin` itself. This is the mode for a vault without Obsidian.
-- **Works with Vault Retrieval for Obsidian:** if the vault has the Obsidian plugin Vault Retrieval installed with an index, the plugin reads that index and never writes it (mode `obsidian`). You get related notes and search in Neovim over the index Obsidian maintains; `reindex`, `update` and update-on-save do nothing there and say so. This is an addition, not a requirement.
+- **Works with Vault Retrieval for Obsidian:** if the vault has the Obsidian plugin Vault Retrieval installed with an index, the plugin reads that index and never writes it (mode `obsidian`). You get related notes and search in Neovim over the index Obsidian maintains; `reindex` and `update` only say that the index is read-only, and update-on-save is never installed. This is an addition, not a requirement.
 
 Why an index has exactly one writer: [docs/explanation/why-one-writer.md](docs/explanation/why-one-writer.md).
 

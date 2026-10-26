@@ -18,7 +18,7 @@
 
 ## The marks
 
-A note can have changed since its vector was made. The panel then says so in words next to the entry:
+The note you are viewing can have changed since its vector was made. The panel then says so in words, once, at the end of its first line (`Related to <note>: 3 notes; changed since the index`); the listed entries carry no mark of their own:
 
 - `changed since the index`: the file's modification time or size differs from the stamp stored in the index. This is exact.
 - `may be stale, index from <date time>`: the row has no real stamp, and the file is newer than the index was built. This is a lower bound, not a promise. Details: [the stale mark](../explanation/stale-mark.md).

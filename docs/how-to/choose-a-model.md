@@ -1,6 +1,6 @@
 # How-to: choose a model
 
-Run `:NoteRetrieval model`. Every configured server is asked for its models; with several servers a folder-like picker lists the servers first, and it waits until all servers have answered or failed (a server that does not answer slows the picker down by its timeout). The model you pick is remembered per server in `stdpath('state')/note-retrieval/state.json`.
+Run `:NoteRetrieval model`. Every configured server is asked for its models; with one server that lists models you pick the model directly; with several, you pick the server first (the one a run uses is marked `(used first)`) and then its model. A server that lists no model or does not answer is not offered. The picker waits until all servers have answered or failed (a server that does not answer slows the picker down by its timeout). The model you pick is remembered per server in `stdpath('state')/note-retrieval/state.json`.
 
 ## Which model
 

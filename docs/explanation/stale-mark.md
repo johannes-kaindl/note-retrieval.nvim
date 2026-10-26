@@ -1,6 +1,6 @@
 # Explanation: what the "changed" mark promises
 
-The panel can mark a note whose file may be newer than its vector. There are two marks and they do not mean the same.
+The panel can mark the note you are viewing when its file may be newer than its vector: the mark is appended to the first line of the panel, not set on the listed entries. There are two marks and they do not mean the same.
 
 ## Exact: `changed since the index`
 

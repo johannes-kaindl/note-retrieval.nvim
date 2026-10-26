@@ -15,7 +15,7 @@ COMMANDS                                                *:NoteRetrieval*
 	Show the notes folder, the mode, the index, the number of notes, the model, the age of the index and the servers. The index and the settings of the vault are read once per session.
 
 :NoteRetrieval model
-	Choose the embedding model of the first server that answers; the choice is remembered per server. An index of the Obsidian plugin decides the model of a search by itself.
+	Choose the embedding model of a server; with several servers that list models, the server is asked first, then its model. The choice is remembered per server. An index of the Obsidian plugin decides the model of a search by itself.
 
 :NoteRetrieval probe [n] [--json]
 	Check that the index finds what it holds: up to `n` notes (default 40) whose text, without front matter and trimmed, is 201 to 800 UTF-16 code units long are searched with the first 300 units of their own text, one query after another, and each should come back first. Shows `x/n on rank 0` and the misses; `--json` prints one JSON line (`n`, `hits`, `rate`, `failures`, `seed`, `model`). It only reads, so it works on the index of the Obsidian plugin too.

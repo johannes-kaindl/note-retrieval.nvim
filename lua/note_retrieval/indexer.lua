@@ -661,9 +661,25 @@ local function stamps_of_notes(root, paths, cb)
   vim.schedule(step)
 end
 
+-- Whether `path` lies in one of the folders `skipped` (vault-relative, as the walk lists them; '.' is
+-- the vault folder itself, read only in part): a note there was not seen, which is not "gone".
+local function under_skipped(path, skipped)
+  for _, dir in ipairs(skipped) do
+    if dir == '.' then
+      if not path:find('/', 1, true) then
+        return true
+      end
+    elseif path:sub(1, #dir + 1) == dir .. '/' then
+      return true
+    end
+  end
+  return false
+end
+
 -- What the index holds against the vault: the paths to embed (not in the index, older than the
--- note, or a zero row) and the paths to drop (no longer a note). No embedding, no write.
-local function delta_of(self, note_paths, current)
+-- note, or a zero row) and the paths to drop (no longer a note). No embedding, no write. The rows of
+-- notes under a folder that could not be read (`skipped`) are neither embedded nor dropped.
+local function delta_of(self, note_paths, current, skipped)
   local built = self.live:build_index()
   local snapshot = self.live:stamps_snapshot()
   local stamps, values = {}, {}
@@ -696,7 +712,31 @@ local function delta_of(self, note_paths, current)
   for _, p in ipairs(built.paths) do
     had[p] = true
   end
-  return { embed = want, drop = diff.stale, had = had }
+  local drop, kept = {}, 0
+  for _, p in ipairs(diff.stale) do
+    if under_skipped(p, skipped or {}) then
+      kept = kept + 1
+    else
+      drop[#drop + 1] = p
+    end
+  end
+  return { embed = want, drop = drop, had = had, rows = #built.paths, unreadable_kept = kept }
+end
+
+-- Whether dropping `#drop` of `rows` rows leaves less than half AND one of the files is still
+-- there (the walk missed it): then the vault was not read, the notes did not go. Files that are
+-- truly gone (no entry) may take any share of the index with them.
+local function drop_refused(rows, drop, root)
+  if not guard.is_suspicious_shrink(rows, rows - #drop) then
+    return false
+  end
+  for _, p in ipairs(drop) do
+    local _, _, code = uv.fs_stat(root .. '/' .. p)
+    if code ~= 'ENOENT' then
+      return true
+    end
+  end
+  return false
 end
 
 --- Brings the own index in line with the notes of the vault, in the background: embeds the notes
@@ -707,7 +747,8 @@ end
 --- in memory: call this before own changes, never between an `update` and its `persist`. Asks the
 --- guard about the model on disk BEFORE it embeds anything. Refused while a reindex or another
 --- update runs. Progress is in `status(root)` (`kind = 'sync'`). `cb(result, err)`: `result` is
---- `{ embedded, removed, failed (paths), skipped_empty (paths), total }` or nil when the run did not
+--- `{ embedded, removed, failed (paths), skipped_empty (paths), total, unreadable (folders the walk
+--- could not read; the rows of their notes stay) }` or nil when the run did not
 --- start; `err` is nil or `{ kind, message }` (the result was not written, memory is the disk again).
 --- A write rewrites the file, so `index.current` loads a NEW `paths` table; nothing is mutated.
 function Ix:sync_vault(cb)
@@ -753,11 +794,21 @@ function Ix:sync_vault(cb)
     cb(result, err)
   end
   stamps_of_notes(root, paths, function(current)
-    local ok, delta = pcall(delta_of, self, paths, current)
+    local ok, delta = pcall(delta_of, self, paths, current, skipped)
     if not ok then
       return finish(
         nil,
         failure('failed', 'the index could not be compared with the notes: ' .. tostring(delta))
+      )
+    end
+    if drop_refused(delta.rows, delta.drop, root) then
+      return finish(
+        nil,
+        failure(
+          'shrink',
+          'this update would drop more than half of the notes of the index although their files are still there,'
+            .. ' so nothing was written; :NoteRetrieval reindex rebuilds the index'
+        )
       )
     end
     run.total = #delta.embed
@@ -778,6 +829,7 @@ function Ix:sync_vault(cb)
         failed = report.failed,
         skipped_empty = report.skipped_empty,
         total = #delta.embed,
+        unreadable = #(skipped or {}),
       }
       run.report = report
       if report.added == 0 and removed == 0 then

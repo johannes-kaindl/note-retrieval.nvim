@@ -951,3 +951,70 @@ T.case('real file system: an update replaces the loaded paths table and never ch
     T.eq(uv.fs_stat(ix.files.lock), nil)
   end, { index_dir = '_nr' })
 end)
+
+-- A vault of `n` top-level notes and `sub_n` notes in sub/, indexed; `fn(root, cfg, ix, st)`.
+local function with_indexed_sub(n, sub_n, fn)
+  with_vault(n, function(root, cfg)
+    for i = 1, sub_n do
+      vim.fn.mkdir(root .. '/sub', 'p')
+      write(('%s/sub/s%03d.md'):format(root, i), ('# Sub %d\n\nwords of sub note %d'):format(i, i))
+    end
+    local st = mem_storage()
+    local ix = new_ix(root, cfg, st, embedder('sync'))
+    T.eq(select(2, reindex(ix)), nil)
+    T.eq(#decode(st.files[ix.path]).paths, n + sub_n)
+    fn(root, cfg, ix, st)
+  end)
+end
+
+T.case('sync: the notes of a folder that cannot be read stay in the index, and the result says so', function()
+  with_indexed_sub(4, 6, function(root, _, ix, st)
+    local ok, err = pcall(function()
+      assert(vim.fn.system({ 'chmod', '000', root .. '/sub' }) == '', 'chmod failed')
+      if uv.fs_scandir(root .. '/sub') then
+        return 'readable' -- running as root: the permission does not stop us; nothing to prove
+      end
+      write(root .. '/new.md', '# New\n\nfresh words')
+      local result, e = sync_vault(ix)
+      T.eq(e, nil)
+      T.eq(result.unreadable, 1)
+      T.eq(result.removed, 0)
+      T.eq(result.embedded, 1)
+      local d = decode(st.files[ix.path])
+      local n_sub = 0
+      for _, p in ipairs(d.paths) do
+        if p:find('^sub/') then
+          n_sub = n_sub + 1
+        end
+      end
+      T.eq(n_sub, 6)
+      T.eq(#d.paths, 11)
+    end)
+    vim.fn.system({ 'chmod', '755', root .. '/sub' })
+    assert(ok, err)
+    -- counter-proof of the cleanup: the folder is readable again, a note deleted there is dropped
+    os.remove(root .. '/sub/s001.md')
+    local result = sync_vault(ix)
+    T.eq({ result.unreadable, result.removed }, { 0, 1 })
+  end)
+end)
+
+T.case('sync: more than half of the rows dropped while their files are still there is refused', function()
+  with_indexed_sub(2, 6, function(root, cfg, ix, st)
+    local before = #st.writes
+    cfg.exclude = { 'sub/' } -- the walk no longer lists sub/, the files are still there
+    local result, err = sync_vault(ix)
+    T.eq(result, nil)
+    T.eq(err.kind, 'shrink')
+    T.eq(#st.writes, before)
+    T.eq(#decode(st.files[ix.path]).paths, 8)
+    -- counter-proof: the same share of rows may go when the files are really gone
+    for i = 1, 6 do
+      os.remove(('%s/sub/s%03d.md'):format(root, i))
+    end
+    local ok_result, ok_err = sync_vault(ix)
+    T.eq(ok_err, nil)
+    T.eq(ok_result.removed, 6)
+    T.eq(#decode(st.files[ix.path]).paths, 2)
+  end)
+end)

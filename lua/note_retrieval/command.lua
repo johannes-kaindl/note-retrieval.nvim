@@ -201,13 +201,23 @@ end
 -- The sentence for the result of an update: "3 embedded, 1 removed, 0 failed".
 local function update_sentence(root, result)
   local text = ('%d embedded, %d removed, %d failed'):format(result.embedded, result.removed, #result.failed)
+  local unreadable = ''
+  if (result.unreadable or 0) > 0 then
+    unreadable = ('; %d folders could not be read, their notes were left as they are'):format(
+      result.unreadable
+    )
+  end
   if result.embedded == 0 and result.removed == 0 and #result.failed == 0 then
-    return ('the index of %s is current: nothing to embed or remove'):format(root)
+    return ('the index of %s is current: nothing to embed or remove%s'):format(root, unreadable)
   end
   if #result.failed > 0 then
-    return ('update of %s: %s (:NoteRetrieval update tries the failed notes again)'):format(root, text)
+    return ('update of %s: %s (:NoteRetrieval update tries the failed notes again)%s'):format(
+      root,
+      text,
+      unreadable
+    )
   end
-  return ('update of %s: %s'):format(root, text)
+  return ('update of %s: %s%s'):format(root, text, unreadable)
 end
 
 --- :NoteRetrieval update — bring the own index in line with the notes of the vault of the current

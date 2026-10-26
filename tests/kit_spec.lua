@@ -41,6 +41,7 @@ T.case('kit: every vendored module loads under note_retrieval.kit, none from a g
     'text',
     'vectors',
     'vrix',
+    'wait',
     'walk',
   })
   for name in pairs(package.loaded) do
@@ -62,7 +63,7 @@ T.case('kit: every copy has the provenance line the manifest names, and the mani
     T.ok(vim.startswith(first, expected), path .. ': ' .. first)
     seen = seen + 1
   end
-  T.eq(seen, 22)
+  T.eq(seen, 23)
 end)
 
 T.case('kit: no module outside kit/ carries a vendored header or lacks its domain line', function()

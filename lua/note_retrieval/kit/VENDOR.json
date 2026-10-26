@@ -7,7 +7,7 @@
   "version": "0.15.0",
   "license": "AGPL-3.0-only",
   "header": true,
-  "vendored": "23 file(s) from nvim-kit@0.15.0",
+  "vendored": "24 file(s) from nvim-kit@0.15.0",
   "files": [
     "lua/nvim_kit/chunker.lua",
     "lua/nvim_kit/conformance.lua",
@@ -31,6 +31,7 @@
     "lua/nvim_kit/text.lua",
     "lua/nvim_kit/vectors.lua",
     "lua/nvim_kit/vrix.lua",
+    "lua/nvim_kit/wait.lua",
     "lua/nvim_kit/walk.lua"
   ],
   "map": {
@@ -56,6 +57,7 @@
     "lua/nvim_kit/text.lua": "lua/note_retrieval/kit/text.lua",
     "lua/nvim_kit/vectors.lua": "lua/note_retrieval/kit/vectors.lua",
     "lua/nvim_kit/vrix.lua": "lua/note_retrieval/kit/vrix.lua",
+    "lua/nvim_kit/wait.lua": "lua/note_retrieval/kit/wait.lua",
     "lua/nvim_kit/walk.lua": "lua/note_retrieval/kit/walk.lua"
   },
   "note": "Verbatim copies (below a one-line provenance header for .lua when header is true). Never edit — re-vendor."

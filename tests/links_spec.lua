@@ -19,8 +19,8 @@ T.case('targets: wikilinks without alias and section, md links decoded, in text 
     'wiki:Beta',
     'wiki:Gamma',
     'wiki:Delta',
-    'md:folder/My Note.md',
-    'md:b.md',
+    'markdown:folder/My Note.md',
+    'markdown:b.md',
     'wiki:Emb',
   })
 end)
@@ -74,18 +74,18 @@ T.case('resolve: an ambiguous short name is no match, a longer path or the whole
   T.eq(select(2, links.resolve('lan', PATHS)), 'missing')
 end)
 
-T.case('format: wiki gives [[title]], md gives [title](encoded path)', function()
+T.case('format: wiki gives [[title]], markdown gives [title](encoded path)', function()
   T.eq(links.format('wiki', 'Notes/Daily.md', 'Daily'), '[[Daily]]')
-  T.eq(links.format('md', 'Notes/Daily.md', 'Daily'), '[Daily](Notes/Daily.md)')
-  T.eq(links.format('md', 'My Notes/A (b)#1.md', 'A [b]'), '[A \\[b\\]](My%20Notes/A%20%28b%29%231.md)')
+  T.eq(links.format('markdown', 'Notes/Daily.md', 'Daily'), '[Daily](Notes/Daily.md)')
+  T.eq(links.format('markdown', 'My Notes/A (b)#1.md', 'A [b]'), '[A \\[b\\]](My%20Notes/A%20%28b%29%231.md)')
   T.raises(function()
     links.format('html', 'a.md', 'a')
   end, 'unknown link kind')
 end)
 
-T.case('format and targets agree: what md format writes, targets reads back, resolve finds', function()
+T.case('format and targets agree: what markdown format writes, targets reads back, resolve finds', function()
   local path = 'My Notes/Plan (v2).md'
-  local text = links.format('md', path, 'Plan')
+  local text = links.format('markdown', path, 'Plan')
   local got = links.targets(text)
   T.eq(got[1].target, 'My Notes/Plan (v2).md')
   T.eq(links.resolve(got[1].target, { path, 'x.md' }), path)

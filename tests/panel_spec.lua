@@ -250,7 +250,7 @@ T.case(
   'l writes the link in the form link_format asks for; a short name that is no longer unique gets its path',
   function()
     with_vault({ texts = { ['a.md'] = '' } }, function(root)
-      config.set({ min_similarity = 0, link_format = 'md' })
+      config.set({ min_similarity = 0, link_format = 'markdown' })
       local note_win = open_panel(root, 'a.md')
       press('l', lnum_of('e'))
       T.eq(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(note_win), 0, -1, false), { '[e](sub/e.md)' })

@@ -29,7 +29,7 @@ Set them in `vim.g.note_retrieval` or pass them to `require('note_retrieval').se
   integer, default 20. How many related notes to show.
 
 *note-retrieval-option-link_format*
-  "wiki" or "md", default "wiki". How an inserted link is written.
+  "wiki" or "markdown", default "wiki". How an inserted link is written.
 
 *note-retrieval-option-min_similarity*
   number from -1 to 1, default 0.3. Cosine similarity below which a note is not related.

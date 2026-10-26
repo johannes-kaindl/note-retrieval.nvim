@@ -36,13 +36,13 @@ local function trim(s)
   return (s:gsub('^%s+', ''):gsub('%s+$', ''))
 end
 
---- The link targets in `text`, in the order they stand: a list of `{ kind = 'wiki'|'md', target }`.
+--- The link targets in `text`, in the order they stand: a list of `{ kind = 'wiki'|'markdown', target }`.
 --- `[[Target|Alias#Section]]` gives `Target` (alias and section dropped; an embed `![[Target]]`
 --- counts as a link; `[[#Section]]` points at the note itself and is left out). `[Text](path.md)`
 --- gives the path with `%20` and the like decoded and `#section` dropped; web addresses and links
 --- to a section of the same note are left out. A target is as written: resolve it with `resolve`.
 ---@param text string
----@return { kind: 'wiki'|'md', target: string }[]
+---@return { kind: 'wiki'|'markdown', target: string }[]
 function M.targets(text)
   local clean = without_code(text)
   local found = {}
@@ -59,7 +59,7 @@ function M.targets(text)
     target = angled or target:match('^%S+') or ''
     target = decode(target:match('^[^#]*'))
     if target ~= '' and not target:find('^%a[%w+.-]*:') then
-      found[#found + 1] = { pos = pos, kind = 'md', target = target }
+      found[#found + 1] = { pos = pos, kind = 'markdown', target = target }
     end
   end
   table.sort(found, function(a, b)
@@ -145,18 +145,18 @@ end
 
 --- A link to the note at `path` (vault-relative, with `.md`): `kind` 'wiki' gives `[[title]]`
 --- (`title` is what the link says: the name of the note, or its path where the name alone would
---- be ambiguous), 'md' gives `[title](path)` with the path encoded.
----@param kind 'wiki'|'md'
+--- be ambiguous), 'markdown' gives `[title](path)` with the path encoded.
+---@param kind 'wiki'|'markdown'
 ---@param path string
 ---@param title string
 ---@return string
 function M.format(kind, path, title)
   if kind == 'wiki' then
     return '[[' .. title .. ']]'
-  elseif kind == 'md' then
+  elseif kind == 'markdown' then
     return '[' .. title:gsub('([%[%]\\])', '\\%1') .. '](' .. encode(path) .. ')'
   end
-  error(('note-retrieval links: unknown link kind %q (wiki or md)'):format(tostring(kind)), 2)
+  error(('note-retrieval links: unknown link kind %q (wiki or markdown)'):format(tostring(kind)), 2)
 end
 
 return M

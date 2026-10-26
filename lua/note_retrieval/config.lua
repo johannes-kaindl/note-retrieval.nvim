@@ -15,7 +15,7 @@ local M = {}
 ---@field k integer how many related notes to show
 ---@field min_similarity number cosine similarity below which a note is not related
 ---@field hide_linked boolean leave out notes the current note already links to
----@field link_format 'wiki'|'md' how an inserted link is written
+---@field link_format 'wiki'|'markdown' how an inserted link is written
 ---@field index_on_save boolean update the own index when a note is saved
 ---@field timeout_ms integer how long one embedding request may take
 M.DEFAULTS = {
@@ -31,6 +31,16 @@ M.DEFAULTS = {
   index_on_save = true,
   timeout_ms = 30000,
 }
+
+-- The largest count a request or a limit takes (a C int); anything above is a typo, not a choice.
+local MAX_WHOLE = 2147483647
+local WHOLE = ('must be a whole number from 1 to %d'):format(MAX_WHOLE)
+
+local function whole(v)
+  if type(v) ~= 'number' or v ~= math.floor(v) or v < 1 or v > MAX_WHOLE then
+    return WHOLE
+  end
+end
 
 local function boolean(v)
   if type(v) ~= 'boolean' then
@@ -79,7 +89,10 @@ local CHECKS = {
     end
     local ok, err = pcall(llm.endpoints, { endpoints = v })
     if not ok then
-      return (tostring(err):gsub('^.-nvim%-kit llm: ', ''))
+      -- The problem line already starts with "endpoints: ", so the kit's own prefix goes.
+      local why = tostring(err):gsub('^.-nvim%-kit llm: ', '')
+      why = why:gsub('^endpoints%[(%d+)%]: ', 'entry %1: '):gsub('^endpoints ', '')
+      return why
     end
   end,
   embedding_model = function(v)
@@ -87,11 +100,7 @@ local CHECKS = {
       return 'must be a model name such as "nomic-embed-text"'
     end
   end,
-  k = function(v)
-    if type(v) ~= 'number' or v ~= math.floor(v) or v <= 0 then
-      return 'must be a positive whole number'
-    end
-  end,
+  k = whole,
   min_similarity = function(v)
     if type(v) ~= 'number' or v ~= v or v < -1 or v > 1 then
       return 'must be a number from -1 to 1'
@@ -99,16 +108,12 @@ local CHECKS = {
   end,
   hide_linked = boolean,
   link_format = function(v)
-    if v ~= 'wiki' and v ~= 'md' then
-      return 'must be "wiki" or "md"'
+    if v ~= 'wiki' and v ~= 'markdown' then
+      return 'must be "wiki" or "markdown"'
     end
   end,
   index_on_save = boolean,
-  timeout_ms = function(v)
-    if type(v) ~= 'number' or v ~= math.floor(v) or v <= 0 then
-      return 'must be a positive whole number'
-    end
-  end,
+  timeout_ms = whole,
 }
 
 --- Every option name, sorted (DEFAULTS cannot list the ones whose default is nil).
@@ -116,10 +121,14 @@ M.NAMES = vim.tbl_keys(CHECKS)
 table.sort(M.NAMES)
 
 local from_setup = {}
+local NOT_A_TABLE = 'note_retrieval: must be a table'
+local setup_not_a_table = false
 
---- Remember opts as given to setup(); they win over vim.g.note_retrieval.
+--- Remember opts as given to setup(); they win over vim.g.note_retrieval. Anything but a table
+--- is reported by resolve() instead of raising.
 function M.set(opts)
-  from_setup = opts or {}
+  setup_not_a_table = opts ~= nil and type(opts) ~= 'table'
+  from_setup = type(opts) == 'table' and opts or {}
 end
 
 --- The options in effect and the problems found: { cfg, problems = { 'option: why', … } }.
@@ -134,6 +143,9 @@ function M.resolve()
   )
   local cfg = vim.deepcopy(M.DEFAULTS)
   local problems = {}
+  if setup_not_a_table or (vim.g.note_retrieval ~= nil and type(vim.g.note_retrieval) ~= 'table') then
+    problems[1] = NOT_A_TABLE
+  end
   local names = vim.tbl_keys(given)
   table.sort(names, function(a, b)
     return tostring(a) < tostring(b)

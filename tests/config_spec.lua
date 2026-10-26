@@ -24,7 +24,7 @@ local DEFAULTS = {
 local CASES = {
   roots = {
     good = { { '/notes' }, { '/a', '/b' } },
-    bad = { { {}, { '' }, { 5 }, '/notes', false } },
+    bad = { {}, '/notes', false, 5 },
     why = 'must be a non-empty list of directory paths',
   },
   index_dir = {
@@ -42,16 +42,28 @@ local CASES = {
     bad = { '', '  ', 5, false },
     why = 'must be a model name such as "nomic-embed-text"',
   },
-  k = { good = { 1, 50 }, bad = { 0, -3, 2.5, '20', false }, why = 'must be a positive whole number' },
+  k = {
+    good = { 1, 50, 2147483647 },
+    bad = { 0, -3, 2.5, '20', false, math.huge, -math.huge, 1e300, 2147483648, 0 / 0 },
+    why = 'must be a whole number from 1 to 2147483647',
+  },
   min_similarity = {
     good = { -1, 0, 0.55, 1 },
     bad = { 1.5, -2, '0.3', false },
     why = 'must be a number from -1 to 1',
   },
   hide_linked = { good = { true, false }, bad = { 'yes', 1, {} }, why = 'must be true or false' },
-  link_format = { good = { 'wiki', 'md' }, bad = { 'html', '', 1, false }, why = 'must be "wiki" or "md"' },
+  link_format = {
+    good = { 'wiki', 'markdown' },
+    bad = { 'html', 'md', '', 1, false },
+    why = 'must be "wiki" or "markdown"',
+  },
   index_on_save = { good = { true, false }, bad = { 'no', 0 }, why = 'must be true or false' },
-  timeout_ms = { good = { 1, 90000 }, bad = { 0, -1, 1.5, '5' }, why = 'must be a positive whole number' },
+  timeout_ms = {
+    good = { 1, 90000, 2147483647 },
+    bad = { 0, -1, 1.5, '5', math.huge, 1e300, 2147483648 },
+    why = 'must be a whole number from 1 to 2147483647',
+  },
 }
 
 T.case('resolve: without options the defaults, no problems', function()
@@ -91,14 +103,12 @@ end)
 
 T.case('resolve: every option names its problem for an invalid value and keeps its default', function()
   for name, spec in pairs(CASES) do
-    -- roots lists its invalid values one level deeper, because a list is itself a value
-    local bads = name == 'roots' and spec.bad[1] or spec.bad
-    for _, value in ipairs(bads) do
+    for _, value in ipairs(spec.bad) do
       with({ [name] = value }, nil, function()
         local cfg, problems = C.resolve()
         T.eq(#problems, 1, name .. ' = ' .. vim.inspect(value))
         T.ok(vim.startswith(problems[1], name .. ': '), problems[1])
-        T.ok(problems[1]:find(spec.why, 1, true) or name == 'roots', problems[1])
+        T.eq(problems[1], name .. ': ' .. spec.why)
         T.eq(cfg[name], C.DEFAULTS[name], name)
       end)
     end
@@ -116,10 +126,10 @@ T.case('resolve: every problem at once, sorted by name; unknown options are name
   with({ k = 0, kk = 3, link_format = 'html', timeout_ms = 1.5 }, nil, function()
     local cfg, problems = C.resolve()
     T.eq(problems, {
-      'k: must be a positive whole number',
+      'k: must be a whole number from 1 to 2147483647',
       'kk: unknown option — ignored',
-      'link_format: must be "wiki" or "md"',
-      'timeout_ms: must be a positive whole number',
+      'link_format: must be "wiki" or "markdown"',
+      'timeout_ms: must be a whole number from 1 to 2147483647',
     })
     T.eq({ cfg.k, cfg.link_format, cfg.timeout_ms }, { 20, 'wiki', 30000 })
   end)
@@ -139,7 +149,7 @@ T.case('resolve: invalid endpoints stop the run instead of falling back to the d
   with({ endpoints = { { url = 'localhost:11434' } } }, nil, function()
     local cfg, problems = C.resolve()
     T.eq(#problems, 1)
-    T.ok(problems[1]:find('^endpoints: endpoints%[1%]: url must be an http%(s%) URL'), problems[1])
+    T.eq(problems[1], 'endpoints: entry 1: url must be an http(s) URL')
     T.ok(cfg.endpoints_error, 'endpoints_error not set')
     T.eq(cfg.endpoints, nil)
   end)
@@ -165,7 +175,7 @@ T.case('setup(): no call is needed; a call reports problems once and replaces th
   end
   local ok, err = pcall(function()
     init.setup({ k = 0 })
-    T.eq(notes, { 'note-retrieval: k: must be a positive whole number' })
+    T.eq(notes, { 'note-retrieval: k: must be a whole number from 1 to 2147483647' })
     init.setup({ k = 7 })
     T.eq(#notes, 1)
     T.eq(init.resolve().k, 7)
@@ -174,4 +184,53 @@ T.case('setup(): no call is needed; a call reports problems once and replaces th
   C.set(nil)
   assert(ok, err)
   T.eq(init.resolve().k, 20)
+end)
+
+T.case('resolve: a roots entry that is no path names its position', function()
+  local why = 'entry %d must be a directory path'
+  for _, want in ipairs({ { '' }, { 5 }, { '/a', '  ' } }) do
+    with({ roots = want }, nil, function()
+      local _, problems = C.resolve()
+      T.eq(problems, { 'roots: ' .. why:format(#want) }, vim.inspect(want))
+    end)
+  end
+end)
+
+T.case('resolve: endpoints that are an empty list name the field once', function()
+  with({ endpoints = {} }, nil, function()
+    local cfg, problems = C.resolve()
+    T.eq(problems, { 'endpoints: must be a non-empty list' })
+    T.ok(cfg.endpoints_error, 'endpoints_error not set')
+  end)
+end)
+
+T.case('resolve: options that are not a table are one problem, from vim.g and from setup()', function()
+  for _, bad in ipairs({ 'x', 5, true }) do
+    with(bad, nil, function()
+      local cfg, problems = C.resolve()
+      T.eq(problems, { 'note_retrieval: must be a table' }, vim.inspect(bad))
+      T.eq(cfg.k, 20)
+    end)
+    with(nil, bad, function()
+      local _, problems = C.resolve()
+      T.eq(problems, { 'note_retrieval: must be a table' }, vim.inspect(bad))
+    end)
+  end
+  with(nil, nil, function()
+    T.eq(select(2, C.resolve()), {})
+  end)
+end)
+
+T.case('setup(): a value that is no table is reported, not raised', function()
+  local init = require('note_retrieval')
+  local notes = {}
+  local saved = vim.notify
+  vim.notify = function(msg)
+    notes[#notes + 1] = msg
+  end
+  local ok, err = pcall(init.setup, 'x')
+  vim.notify = saved
+  C.set(nil)
+  T.ok(ok, err)
+  T.eq(notes, { 'note-retrieval: note_retrieval: must be a table' })
 end)

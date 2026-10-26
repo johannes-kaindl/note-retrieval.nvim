@@ -241,6 +241,7 @@ local function guarded_storage(self)
         error(self.write_error, 0)
       end
       self.write_error = nil
+      self.wrote = true
     end,
   }
   return s
@@ -519,6 +520,7 @@ function Ix:reindex(cb, opts)
   -- stock of the run and the "thin result" check must start from what is on disk.
   self:sync()
   self.write_error = nil
+  self.wrote = false
   local before = math.max(self.live:note_count(), self.disk_count or 0)
   local run = { running = true, done = 0, indexed = 0, total = #paths, started = now_ms(), stopping = false }
   self.run = run
@@ -587,7 +589,8 @@ function Ix:reindex(cb, opts)
       -- write fails; the wrapper kept the failure.
       if report.cancelled then
         result_err = self.write_error
-        if not result_err then
+        -- Only a write moves the disk: a cancel that wrote nothing (foreign model on disk) leaves it.
+        if not result_err and self.wrote then
           self.disk_count = self.live:note_count()
         end
       end

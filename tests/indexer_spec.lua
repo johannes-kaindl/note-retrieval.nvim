@@ -684,3 +684,47 @@ T.case('reindex after a model change: a dying server does not thin the index of 
     T.eq(st.files[ix.path], before)
   end)
 end)
+
+T.case(
+  'reindex: a cancel that wrote nothing keeps the disk count, a rerun with a dying server is refused',
+  function()
+    with_vault(70, function(root, cfg)
+      local st = mem_storage()
+      local ix = new_ix(root, cfg, st, embedder('sync'))
+      reindex(ix)
+      local before = st.files[ix.path]
+      -- the new model: the disk holds m1, so the kit writes nothing when the run is cancelled
+      assert(indexer.for_root(root, { embedder = embedder('defer').fn, model = 'm2', dim = DIM }))
+      local stopped = false
+      local report, err = reindex(ix, {
+        on_progress = function()
+          if not stopped then
+            stopped = true
+            indexer.stop(root)
+          end
+        end,
+      })
+      T.eq(report.cancelled, true)
+      T.eq(err, nil)
+      T.eq(st.files[ix.path], before)
+      -- the rerun: the server dies after two notes
+      local calls = 0
+      local dying = function(texts, cb)
+        calls = calls + 1
+        if calls == 1 or calls > 3 then
+          return cb(nil, 'server gone')
+        end
+        local vecs = {}
+        for i = 1, #texts do
+          vecs[i] = { 1, 2, 3, 4 }
+        end
+        cb(vecs)
+      end
+      assert(indexer.for_root(root, { embedder = dying, model = 'm2', dim = DIM }))
+      local report2, err2 = reindex(ix)
+      T.eq(#report2.failed > 0, true)
+      T.eq(err2.kind, 'incomplete')
+      T.eq(st.files[ix.path], before)
+    end)
+  end
+)

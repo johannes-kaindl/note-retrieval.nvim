@@ -40,3 +40,20 @@ T.case('live: loaded as a library it runs nothing and does not exit', function()
   T.eq(type(live.main), 'function')
   T.eq(type(live.parse_env), 'function')
 end)
+
+T.case('live: the summary line names the notes that failed to embed', function()
+  local live = load_live()
+  local line = live.summary({
+    model = 'm',
+    added = 18,
+    failed = 2,
+    secs = 1.5,
+    note = 'Baking/hydration.md',
+    same = 3,
+    related = 5,
+    topic = 'Baking',
+    probe = { hits = 6, n = 6 },
+  })
+  T.ok(line:find('18 notes in 1.5 s (2 failed)', 1, true), line)
+  T.ok(line:find('probe 6 of 6 found', 1, true), line)
+end)

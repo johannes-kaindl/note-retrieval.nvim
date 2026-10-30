@@ -26,6 +26,22 @@ function M.parse_env(env)
   return { url = url, model = model }
 end
 
+--- The result line. The notes that failed to embed stand in it: a partial failure passes the run
+--- (some notes are enough to relate), and the number is the only place it shows.
+function M.summary(f)
+  return ('live: %s, %d notes in %.1f s (%d failed), %s: %d of %d related in %s, probe %s'):format(
+    f.model,
+    f.added,
+    f.secs,
+    f.failed,
+    f.note,
+    f.same,
+    f.related,
+    f.topic,
+    f.probe and ('%d of %d found'):format(f.probe.hits, f.probe.n) or ('failed: ' .. vim.inspect(f.probe_err))
+  )
+end
+
 local function out(line)
   io.write(line, '\n')
 end
@@ -114,18 +130,18 @@ function M.main()
       require('note_retrieval.probe').run(vault, { n = 6 }, done)
     end, 120000)
     local secs = (vim.uv.hrtime() - t) / 1e9
-    out(
-      ('live: %s, %d notes in %.1f s, %s: %d of %d related in %s, probe %s'):format(
-        resolved.model,
-        report.added,
-        secs,
-        M.NOTE,
-        same,
-        #hits,
-        topic,
-        probe and ('%d of %d found'):format(probe.hits, probe.n) or ('failed: ' .. vim.inspect(perr))
-      )
-    )
+    out(M.summary({
+      model = resolved.model,
+      added = report.added,
+      failed = #(report.failed or {}),
+      secs = secs,
+      note = M.NOTE,
+      same = same,
+      related = #hits,
+      topic = topic,
+      probe = probe,
+      probe_err = perr,
+    }))
     local pass = same > 0
     out(pass and 'live: PASS' or 'live: FAIL (no note of the same topic among the related notes)')
     return pass and 0 or 1

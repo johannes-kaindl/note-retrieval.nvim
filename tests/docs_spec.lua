@@ -102,7 +102,13 @@ T.case('README, the manual and the reference name every subcommand, option and <
     vim.list_extend(gaps, list)
   end
   add(missing('README.md', subs))
-  add(missing('README.md', config.NAMES))
+  -- In backticks, not as bare text: a short name like `k` would be found in any word.
+  local function quoted(names)
+    return vim.tbl_map(function(n)
+      return '`' .. n .. '`'
+    end, names)
+  end
+  add(missing('README.md', quoted(config.NAMES)))
   add(missing('README.md', plugs))
   add(missing('doc/note-retrieval.txt', subs))
   add(missing(
@@ -112,6 +118,33 @@ T.case('README, the manual and the reference name every subcommand, option and <
     end, command.SUBCOMMANDS)
   ))
   add(missing('docs/reference/commands.md', plugs))
-  add(missing('docs/reference/options.md', config.NAMES))
+  add(missing(
+    'docs/reference/options.md',
+    vim.tbl_map(function(n)
+      return '| `' .. n .. '` |'
+    end, config.NAMES)
+  ))
   T.eq(gaps, {})
+end)
+
+T.case('the Default column of the options reference is config.DEFAULTS', function()
+  local cells = {}
+  for name, default in read('docs/reference/options.md'):gmatch('\n| `([%w_]+)` | [^|]+ | ([^|]+) |') do
+    cells[name] = default
+  end
+  local wrong = {}
+  for _, name in ipairs(config.NAMES) do
+    local want = config.DEFAULTS[name]
+    local cell = cells[name]
+    if cell == nil then
+      wrong[#wrong + 1] = name .. ': no row'
+    elseif want == nil then
+      if not cell:find('^`nil`') then
+        wrong[#wrong + 1] = name .. ': default is nil, the column says ' .. cell
+      end
+    elseif cell ~= '`' .. (type(want) == 'string' and ('"%s"'):format(want) or tostring(want)) .. '`' then
+      wrong[#wrong + 1] = ('%s: default is %s, the column says %s'):format(name, vim.inspect(want), cell)
+    end
+  end
+  T.eq(wrong, {})
 end)

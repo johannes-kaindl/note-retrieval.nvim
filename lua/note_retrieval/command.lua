@@ -297,16 +297,27 @@ function M.stop()
   if not root then
     return messages.notify({ kind = 'no-index', detail = why })
   end
-  if require('note_retrieval.indexer').stop(root) then
+  local indexer = require('note_retrieval.indexer')
+  if indexer.stop(root) then
     vim.notify(
       ('note-retrieval: stopping the reindex of %s after the notes in flight; what it reached is written'):format(
         root
       ),
       vim.log.levels.INFO
     )
-  else
-    vim.notify('note-retrieval: no reindex is running in ' .. root, vim.log.levels.INFO)
+    return
   end
+  -- An update and the update after a save run to their end; saying "no reindex" while status shows one is false.
+  local running = indexer.status(root)
+  vim.notify(
+    running.running
+        and ('note-retrieval: %s of %s is running and cannot be stopped (:NoteRetrieval status shows it)'):format(
+          running.kind == 'save' and 'the update after a save' or 'an update',
+          root
+        )
+      or 'note-retrieval: no reindex is running in ' .. root,
+    vim.log.levels.INFO
+  )
 end
 
 local function endpoint_label(ep)

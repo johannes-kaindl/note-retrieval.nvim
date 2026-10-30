@@ -519,6 +519,32 @@ T.case('stop during a run: the run ends early, what it reached is written, the r
   end)
 end)
 
+T.case('stop during an update: says the update runs and cannot be stopped, the update still ends', function()
+  local dbl = double({ delay = 15 })
+  with_eigen(200, dbl, function(root)
+    with_ui({}, function(seen)
+      run('update')
+      T.ok(
+        vim.wait(5000, function()
+          return indexer.status(root).running and indexer.status(root).done > 0
+        end, 5),
+        'the update made no progress'
+      )
+      T.eq(indexer.status(root).kind, 'sync')
+      run('stop')
+      local text = assert(note_with(seen, 'cannot be stopped'), vim.inspect(seen.notes))
+      T.ok(text:find('an update of ' .. root .. ' is running', 1, true), text)
+      T.eq(note_with(seen, 'no reindex is running'), nil)
+      T.ok(
+        vim.wait(30000, function()
+          return not indexer.status(root).running
+        end, 5),
+        'the update did not end'
+      )
+    end)
+  end)
+end)
+
 T.case('reindex: a second one while one runs is refused in words', function()
   local dbl = double({ delay = 15 })
   with_eigen(30, dbl, function()

@@ -230,9 +230,13 @@ T.case('l writes a wiki link at the cursor of the previous window; undo takes ba
   with_vault({ texts = { ['a.md'] = 'hello world' } }, function(root)
     config.set({ min_similarity = 0 })
     local note_win = open_panel(root, 'a.md')
-    vim.api.nvim_win_set_cursor(note_win, { 1, 6 })
-    vim.api.nvim_set_current_win(note_win)
-    vim.cmd('normal! ix ') -- a typed change right before: the link must not merge into its undo step
+    local note_buf = vim.api.nvim_win_get_buf(note_win)
+    -- A change in the note buffer that nothing closed (the panel is the current buffer, so no keystroke
+    -- synced it; a `normal!` in the note window would be synced by the window switch and prove nothing).
+    -- The link must not merge into its undo step.
+    vim.api.nvim_set_current_win(panel_win())
+    T.ok(vim.api.nvim_get_current_buf() ~= note_buf, 'the panel is meant to be the current buffer')
+    vim.api.nvim_buf_set_text(note_buf, 0, 6, 0, 6, { 'x ' })
     vim.api.nvim_win_set_cursor(note_win, { 1, 8 })
     press('l', lnum_of('e'))
     T.eq(

@@ -78,8 +78,8 @@ Why an index has exactly one writer: [docs/explanation/why-one-writer.md](docs/e
 
 Short list; every point, its cause and its way out is in [docs/explanation/limits.md](docs/explanation/limits.md).
 
-- `:NoteRetrieval stop` does not act on a running `update`; it reports that no reindex is running.
-- The first step of an `update` stalls Neovim for a moment (about 90 ms on 13,000 notes).
+- `:NoteRetrieval stop` does not act on a running `update`; it says so and the update runs on.
+- The first step of an `update` stalls Neovim for a moment (about 45 to 70 ms on 11,000 notes).
 - The mark "changed since the index" is exact only for rows with a real file stamp; see [docs/explanation/stale-mark.md](docs/explanation/stale-mark.md).
 - Quitting within a second of a save loses that save's index batch; the next `update` embeds it.
 

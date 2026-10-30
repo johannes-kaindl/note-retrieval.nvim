@@ -33,7 +33,7 @@ Every error is one message starting with `note-retrieval:`, ending in the next s
 | the index at … could not be loaded … so nothing is written over it | Fix or remove the file, or `:NoteRetrieval reindex`. |
 | the index on disk cannot be read right now (another Neovim writing it?) | Try again in a moment. |
 | the options name another index folder than this session writes to | `:NoteRetrieval reset`, then try again. |
-| no reindex is running in … (after `stop`) | Either none runs, or an `update` runs: `stop` does not act on `update`, see [limits](../explanation/limits.md). |
+| no reindex is running in … (after `stop`) | None runs. An `update` that runs is named as such (`an update of … is running and cannot be stopped`): `stop` does not act on `update`, see [limits](../explanation/limits.md). |
 | N could not be embedded and are missing from the index | `:NoteRetrieval reindex` tries again. |
 
 ## Where things are

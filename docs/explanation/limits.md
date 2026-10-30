@@ -4,8 +4,8 @@ What the plugin does not do in 0.1.0, written down so that it is not a surprise.
 
 ## Commands
 
-- **`:NoteRetrieval stop` does not act on a running `update`.** `stop` ends a reindex. During an `update` it says `no reindex is running in <root>`, and the update runs on. Way out: wait for it; an update is a delta and short.
-- **The first step of an `update` stalls Neovim for a moment.** Walking the vault and reloading the index take about 90 ms together on 13,000 notes (a sum of single measurements; the delta step after it about 41 ms). The rest runs in the background.
+- **`:NoteRetrieval stop` does not act on a running `update`.** `stop` ends a reindex. During an `update` it says that the update is running and cannot be stopped, and the update runs on. Way out: wait for it; an update is a delta and short.
+- **The first step of an `update` stalls Neovim for a moment.** Walking the vault and reloading the index block Neovim for about 45 ms when the index is unchanged and 60 to 70 ms when it has to be read again (11,000 notes, measured as one step on a copy of the vault, 2026-10-30; the delta step after it about 41 ms). The rest runs in the background.
 
 ## Update on save
 

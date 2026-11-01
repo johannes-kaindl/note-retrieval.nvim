@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.15.0 (lua/nvim_kit/index_guard.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.16.1 (lua/nvim_kit/index_guard.lua) — do not edit; re-vendor
 -- Index guards: the decisions where an index write could lose data, as pure functions. A port of
 -- code-kit `index-guard.ts` (tag 0.31.1, from vault-rag), proven by its conformance vectors.
 --

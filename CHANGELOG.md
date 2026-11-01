@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format is based on 
 - `:NoteRetrieval stop` during an `update` (or the update after a save) says that the update is running and cannot be stopped, instead of "no reindex is running". It still does not stop it.
 
 ### Changed
+- Vendors nvim-kit 0.16.1 (was 0.15.0); `state.lua` is the kit's `endpoint_model` over this plugin's state file (same file, same behaviour: a broken file reads as nothing and is set aside).
 - `make live` prints the number of notes that failed to embed in its result line.
 - The stall of the first `update` step is documented as measured in one step: about 45 ms with an unchanged index, 60 to 70 ms when the index is read again (11,000 notes); earlier text said about 90 ms, a sum of single measurements.
 

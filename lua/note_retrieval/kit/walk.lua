@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.15.0 (lua/nvim_kit/walk.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.16.1 (lua/nvim_kit/walk.lua) — do not edit; re-vendor
 -- Walking a directory tree for Markdown notes: the paths of every `*.md` under a root, relative to
 -- it, `/`-separated and sorted by bytes. Synchronous (`vim.uv.fs_scandir`), so it belongs in a
 -- command or a startup step, not in a fast callback loop.

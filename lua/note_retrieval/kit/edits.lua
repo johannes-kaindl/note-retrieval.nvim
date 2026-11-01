@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.15.0 (lua/nvim_kit/edits.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.16.1 (lua/nvim_kit/edits.lua) — do not edit; re-vendor
 -- Byte offsets into a range of buffer lines, and replacements applied back to them. The text of a
 -- range is its lines joined with "\n" plus one final "\n" (what a search over the range sees, see
 -- nvim_kit.rg). Offsets and columns are bytes, as Neovim's are, so multibyte characters need no

@@ -26,6 +26,7 @@ T.case('kit: every vendored module loads under note_retrieval.kit, none from a g
     'date',
     'debounce',
     'edits',
+    'endpoint_model',
     'health',
     'http_stub',
     'index_delta',
@@ -53,7 +54,7 @@ end)
 T.case('kit: every copy has the provenance line the manifest names, and the manifest the tag', function()
   local m = manifest()
   T.eq(m.source, 'nvim-kit')
-  T.eq(m.tag, '0.15.0')
+  T.eq(m.tag, '0.16.1')
   T.eq(m.license, 'AGPL-3.0-only')
   local expected = '-- vendored from nvim-kit@' .. m.tag
   local seen = 0
@@ -64,7 +65,7 @@ T.case('kit: every copy has the provenance line the manifest names, and the mani
     T.ok(vim.startswith(first, expected), path .. ': ' .. first)
     seen = seen + 1
   end
-  T.eq(seen, 24)
+  T.eq(seen, 25)
 end)
 
 T.case('kit: no module outside kit/ carries a vendored header or lacks its domain line', function()

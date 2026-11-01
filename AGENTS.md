@@ -15,7 +15,7 @@
 | `lua/note_retrieval/config.lua`, `init.lua` | options from `vim.g.note_retrieval` and `setup()`, every problem at once; invalid `endpoints` stop a run (`endpoints_error`); `resolve()` returns `cfg, problems` |
 | `lua/note_retrieval/roots.lua` | the vault root (option `roots`, else the nearest `.obsidian/` or `.zk/`), the mode (`obsidian` reads the index of the Obsidian plugin, `eigen` keeps its own), the index path and the set of note paths; never writes to anything Obsidian owns |
 | `lua/note_retrieval/embedder.lua` | server and model of a run (option, else remembered, else asked; in mode `obsidian` the model must be the index header's, else `model-mismatch`), one query embedding with no instruction in front, the adapter for the kit's `live_indexer`; callbacks only |
-| `lua/note_retrieval/state.lua` | the model chosen per server, `stdpath('state')/note-retrieval/state.json` |
+| `lua/note_retrieval/state.lua` | the model chosen per server, `stdpath('state')/note-retrieval/state.json`; only the path and the prompt prefix, the behaviour is the kit's `endpoint_model` |
 | `lua/note_retrieval/index.lua`, `search.lua` | the index in memory (loaded on first need, reloaded when the file changes, never written in mode `obsidian`); `related` from a note's row, `search` with one embedding call, `pick` |
 | `lua/note_retrieval/indexer.lua` | the writer of the own index (mode `eigen` only): one indexer per root, full reindex with progress (`status`, `statusline`, `stop`), the delta against the vault (`sync`: new, changed by stamp, zero and vanished rows; one `persist('heal')`), every write behind mode check (read fresh), lock under `stdpath('state')`, backup (first write of a session, before a reindex) and the kit's guards; errors are `{ kind, message }` values |
 | `lua/note_retrieval/probe.lua` | the self-find probe: the kit's sample order and query over the notes of the loaded index, each searched through `search.search` one after another, rank 0 expected; `run`, `json`, `lines`, `auto` (after a full reindex, never while a writer runs); reads only |
@@ -42,10 +42,10 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Conventions
 
-- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 24 files plus `data/`):
+- **Never edit vendored files** (`lua/note_retrieval/kit/`). Fix in nvim-kit, tag, re-vendor from the Dach (zsh-safe full form; the module list is in `lua/note_retrieval/kit/VENDOR.json`, 25 files plus `data/`):
 
   ```
-  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance wait edits; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
+  cd .. && L=(); for m in llm sampling llm_json http_stub chunker vectors vrix index_guard index_delta probe live_indexer lock store scratch text date data walk debounce health test conformance wait edits endpoint_model; do L+=("lua/nvim_kit/$m.lua:lua/note_retrieval/kit/$m.lua"); done; PYTHONDONTWRITEBYTECODE=1 python3 tools/kit/vendor.py add note-retrieval.nvim --source nvim-kit --ref <tag> --manifest lua/note_retrieval/kit/VENDOR.json --license AGPL-3.0-only --header "${L[@]}" lua/nvim_kit/data/:lua/note_retrieval/kit/data
   ```
 - **Every module under `lua/note_retrieval/` except `kit/` carries `-- domain: note_retrieval` in its first five lines** (`tests/kit_spec.lua` checks it). Fachfreie helpers belong in nvim-kit (`../AGENTS.md`, "Bibliothek ab Eins"); the gate does not see `local function`s in a domain module, the reviewer does.
 - `http_stub` is vendored for tests only; no plugin module requires it.

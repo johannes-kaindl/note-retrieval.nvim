@@ -33,6 +33,7 @@ Boundaries: the index core (chunker, vectors, VRIX, guards, live indexer, probe)
 make check           # stylua --check · selene · tests in headless Neovim · vendor-check (../tools/kit/vendor.py)
 make release-check   # Bibliothek gate over everything since the last tag (../tools/bibliothek/gate.py)
 make live            # one run against a real embedding server; tests/live.lua (NOTE_RETRIEVAL_LIVE_URL and _MODEL required)
+make parity          # writer parity: own writer chain against a vault-rag index of the same notes, reads only; tests/parity.lua (PARITY_VAULT = a copy with _vaultrag/index.bin, PARITY_URL; exit 0 parity, 1 deviation, 2 no valid measurement)
 make test NVIM=/path/to/nvim   # the suite with another Neovim — the minimum version run:
 # D=$(mktemp -d); curl -sfL https://github.com/neovim/neovim/releases/download/v0.10.4/nvim-macos-arm64.tar.gz | tar -xz -C "$D"; xattr -cr "$D"
 # make test NVIM="$D/nvim-macos-arm64/bin/nvim"

@@ -1,4 +1,4 @@
-.PHONY: check fmt lint test vendor-check release-check live
+.PHONY: check fmt lint test vendor-check release-check live parity
 NVIM ?= nvim
 check: fmt lint test vendor-check
 fmt:
@@ -20,3 +20,7 @@ release-check:
 # carries the script's code (0 pass, 1 fail, 2 nothing measured); make itself exits 2 on any non-zero.
 live:
 	@$(NVIM) --headless -u NONE -l tests/live.lua; code=$$?; echo "live: exit $$code"; exit $$code
+# Writer parity: the own index writer against a vault-rag index of the same notes (reads only, tests/parity.lua).
+# PARITY_VAULT (a copy of a vault with _vaultrag/index.bin) and PARITY_URL are required; exit 0 parity, 1 deviation, 2 no valid measurement.
+parity:
+	@$(NVIM) --headless -u NONE -l tests/parity.lua; code=$$?; echo "parity: exit $$code"; exit $$code

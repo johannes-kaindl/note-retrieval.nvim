@@ -58,5 +58,5 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Abweichungen von der Leitkonvention
 
-- README-Tier: wie transmute.nvim (`nvim-plugin`), nicht gegen die Tier-Spezifikation gemessen. Noch kein Hero-Bild (CORE-META-03): die README zeigt das Panel als Text, ausdrücklich als Beispiel gekennzeichnet (Notizen aus der Fixture, Werte nicht gemessen).
+- README-Tier: `nvim-plugin` (`repo_tiers`), gemessen am 2026-11-10 mit `readme_lint.py`: 0 Befunde (Pflichtsektionen Requirements, Install, Usage, Configuration, License; Prüfungen vimdoc-present, install-lua-spec, license-files). Die Defaults der Configuration-Tabelle prüft kein Test (siehe unten). Noch kein Hero-Bild (CORE-META-03): die README zeigt das Panel als Text, ausdrücklich als Beispiel gekennzeichnet (Notizen aus der Fixture, Werte nicht gemessen).
 - Nutzer-Doku doppelt angelegt: `:help note-retrieval` ist das Handbuch, `docs/` die Diátaxis-Doku. Anders als bei transmute.nvim stehen Befehle und Optionen auch in README und `docs/reference/`; `tests/docs_spec.lua` prüft Namen von Optionen, Befehlen und `<Plug>`-Belegungen gegen den Code, die Standardwerte prüft kein Test.

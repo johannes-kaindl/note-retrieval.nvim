@@ -47,7 +47,9 @@ Nothing needs `setup()`. If the vault is not found by itself (a folder with `.ob
 
 A tutorial with every step is in [docs/tutorials/first-index.md](docs/tutorials/first-index.md).
 
-## Commands
+## Usage
+
+One command, `:NoteRetrieval {subcommand}`, with completion. It works on the vault of the note you are in.
 
 | Command | What it does |
 |---|---|
@@ -61,9 +63,38 @@ A tutorial with every step is in [docs/tutorials/first-index.md](docs/tutorials/
 | `:NoteRetrieval probe [n] [--json]` | Check that the index finds the notes it holds. |
 | `:NoteRetrieval reset` | Forget the index, the vault settings and the save state held in memory. |
 
-Mappings (the plugin sets no key of its own): `<Plug>(note-retrieval-related)` and `<Plug>(note-retrieval-search)` (Normal and Visual mode; in Visual mode the selection is the query).
+Mappings: the plugin sets no key of its own; bind the two `<Plug>` mappings (see Install). `<Plug>(note-retrieval-related)` works in Normal mode, `<Plug>(note-retrieval-search)` in Normal and Visual mode; in Visual mode the selection is the query. In the panel `<CR>` opens the note under the cursor, `l` writes a link to it and `q` closes the panel. Every command and mapping is described in [docs/reference/commands.md](docs/reference/commands.md) and `:help :NoteRetrieval`.
 
-Options, set in `vim.g.note_retrieval` or `setup()`: `roots`, `endpoints`, `embedding_model`, `k`, `min_similarity`, `hide_linked`, `link_format`, `exclude`, `index_dir`, `index_on_save`, `probe_auto`, `timeout_ms`. Defaults and meaning: `:help note-retrieval-options`, or [docs/reference/options.md](docs/reference/options.md).
+## Configuration
+
+Set options in `vim.g.note_retrieval` or pass them to `require('note_retrieval').setup()`; `setup()` wins field by field. Nothing needs `setup()`: every option has a default.
+
+```lua
+vim.g.note_retrieval = {
+  roots = { '~/notes' },
+  embedding_model = 'qwen3-embedding:0.6b',
+  k = 10,
+  link_format = 'markdown',
+  exclude = { 'Templates/' },
+}
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `roots` | `nil` (nearest parent with `.obsidian/` or `.zk/`) | Directories holding the notes. |
+| `endpoints` | `nil` (Ollama on `:11434`, then LM Studio on `:1234`) | Embedding servers in priority order, each `{ url = …, model = … }`. |
+| `embedding_model` | `nil` (chosen per server) | The model that embeds notes and queries. |
+| `k` | `20` | How many related notes to show. |
+| `min_similarity` | `0.3` | Cosine similarity below which a note is not related. |
+| `hide_linked` | `true` | Leave out notes the current note already links to. |
+| `link_format` | `'wiki'` | How an inserted link is written: `'wiki'` or `'markdown'`. |
+| `exclude` | `nil` | Path prefixes left out of the notes of the own index. |
+| `index_dir` | `nil` (under `stdpath('data')`) | Folder inside the root that holds the own `index.bin`. |
+| `index_on_save` | `true` | Update the own index when a note is saved. |
+| `probe_auto` | `true` | After a full reindex, probe 8 notes and show one line. |
+| `timeout_ms` | `30000` | How long one embedding request may take. |
+
+A value that fails its check is reported by `:checkhealth note_retrieval` and keeps its default; invalid `endpoints` stop a run, so text never goes to a server you did not set. Types and details: `:help note-retrieval-options`, or [docs/reference/options.md](docs/reference/options.md).
 
 ## Two modes
 

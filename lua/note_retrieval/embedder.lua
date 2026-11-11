@@ -87,12 +87,12 @@ function M.resolve(cfg, index_manifest, cb)
     if #r.models == 0 then
       return cb(nil, { kind = 'no-model', detail = r.detail, endpoint_models = r.models })
     end
-    vim.ui.select(r.models, { prompt = 'note-retrieval: model on ' .. r.endpoint.url }, function(id)
+    -- A pick that cannot be remembered still arrives (the kit gives cb(id, err)): the run goes on
+    -- with the picked model, the write error is of no use here.
+    state.choose(r.endpoint, r.models, function(id)
       if not id then
         return cb(nil, { kind = 'no-model-chosen', endpoint_models = r.models })
       end
-      -- Not remembering the pick must not lose it: the run goes on with the picked model.
-      pcall(state.set_model, r.endpoint.url, id)
       done(cb, r, id, cfg, index_manifest)
     end)
   end)

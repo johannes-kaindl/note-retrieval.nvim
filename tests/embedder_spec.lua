@@ -228,6 +228,25 @@ T.case('resolve: a pick that cannot be remembered is still used, and cb fires on
   assert(ok, err)
 end)
 
+T.case('resolve: the model prompt names the server', function()
+  fresh()
+  local srv = server({ 'a', 'b' })
+  local original, prompts = vim.ui.select, {}
+  vim.ui.select = function(items, opts, on_choice)
+    prompts[#prompts + 1] = opts.prompt
+    on_choice(items[1])
+  end
+  local ok, err = pcall(function()
+    local r = resolve(cfg_for(srv), nil)
+    T.eq(r.model, 'a')
+  end)
+  vim.ui.select = original
+  local url = srv.url
+  srv.close()
+  assert(ok, err)
+  T.eq(prompts, { 'note-retrieval: model on ' .. url })
+end)
+
 T.case('resolve: an index_dim that is no positive whole number falls back to 256', function()
   fresh()
   local srv = server({ 'nomic' })

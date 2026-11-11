@@ -287,6 +287,37 @@ T.case(
   end
 )
 
+T.case(
+  'model: the prompt names the server, and a pick that cannot be remembered still counts and says why',
+  function()
+    local srv = V.server({ 'm1', V.MODEL })
+    V.with_vault(function(root)
+      vim.g.note_retrieval = { endpoints = V.endpoint(srv.url) }
+      vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/a.md'))
+      local original = state.set_model
+      state.set_model = function()
+        error('state dir not writable')
+      end
+      local ok, err = pcall(function()
+        with_ui({ pick = 1 }, function(seen)
+          run('model')
+          settle(seen)
+          T.eq(#seen.items, 1)
+          T.eq(seen.items[1].prompt, 'note-retrieval: model on ' .. srv.url)
+          T.eq(#seen.notes, 1)
+          T.ok(seen.notes[1]:find('model on ' .. srv.url .. ': m1', 1, true), seen.notes[1])
+          T.ok(seen.notes[1]:find(' — but it could not be remembered: ', 1, true), seen.notes[1])
+          T.ok(seen.notes[1]:find('state dir not writable', 1, true), seen.notes[1])
+        end)
+      end)
+      state.set_model = original
+      assert(ok, err)
+      T.eq(state.model(srv.url), nil) -- the write was refused, nothing was stored
+    end)
+    srv.close()
+  end
+)
+
 T.case('model: dismissing the list remembers nothing; no server is a sentence', function()
   local srv = V.server({ 'only-a', 'only-b' })
   V.with_vault(function()

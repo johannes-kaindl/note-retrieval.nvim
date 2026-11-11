@@ -393,11 +393,10 @@ function M.model()
     end
     local function choose(a)
       local ep = a.ep
-      vim.ui.select(a.models, { prompt = 'note-retrieval: model on ' .. ep.url }, function(id)
+      require('note_retrieval.state').choose(ep, a.models, function(id, err)
         if not id then
           return
         end
-        local ok, err = pcall(require('note_retrieval.state').set_model, ep.url, id)
         local note = ep.model and (' — this endpoint sets model = %q, which comes first'):format(ep.model)
           or ''
         if ep.url ~= in_use then
@@ -412,8 +411,8 @@ function M.model()
             tostring(loaded.manifest.embedding_model)
           )
         end
-        if not ok then
-          note = note .. ' — but it could not be remembered: ' .. tostring(err)
+        if err then
+          note = note .. ' — but it could not be remembered: ' .. err
         end
         vim.notify(('note-retrieval: model on %s: %s%s'):format(ep.url, id, note), vim.log.levels.INFO)
       end)

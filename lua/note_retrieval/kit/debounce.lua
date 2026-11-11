@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/debounce.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/debounce.lua) — do not edit; re-vendor
 -- Debouncing: many calls in a burst, one run after things have been quiet for a while.
 local M = {}
 

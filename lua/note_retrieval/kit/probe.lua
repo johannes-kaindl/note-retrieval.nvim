@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/probe.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/probe.lua) — do not edit; re-vendor
 -- The core of the self-find probe: pick a stable, scattered sample of notes, query the index with
 -- each note's own text, and compare two runs over the same notes. A port of code-kit
 -- `probe-core.ts` (tag 0.31.1, from vault-rag), proven by its conformance vectors. What does not

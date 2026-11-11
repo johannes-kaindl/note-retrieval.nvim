@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/vectors.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/vectors.lua) — do not edit; re-vendor
 -- Index vectors: unit vectors for notes and queries, their int8 form on disk, and the cosine rank over
 -- a matrix of them. A port of code-kit's embed-vector.ts, vector-index.ts and retriever (tag 0.31.1),
 -- proven by its conformance vectors. Every float32 in the source (Float32Array) is rounded here with

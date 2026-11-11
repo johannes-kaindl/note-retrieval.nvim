@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/llm_json.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/llm_json.lua) — do not edit; re-vendor
 -- Reading a model's answer: <think> blocks out, then the first JSON object. A port of code-kit
 -- src/ts/pure/think-splitter.ts (stripThinkBlocks) and src/ts/pure/llm-json.ts
 -- (extractJsonCandidates, firstJsonObject), checked against code-kit's conformance vectors.

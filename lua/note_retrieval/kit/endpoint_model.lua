@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/endpoint_model.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/endpoint_model.lua) — do not edit; re-vendor
 -- The model a person chose per server, remembered across sessions in a JSON state file:
 -- { "models": { "<endpoint url>": "<model id>" } }, through nvim_kit.store (atomic write, re-read
 -- before every write, a broken file set aside). The file's path belongs to the plugin.
@@ -14,6 +14,9 @@ local M = {}
 ---   set_model(url, id)             remember id; raises when the file cannot be written
 ---   choose(endpoint, models, cb, opts)  vim.ui.select over models (endpoint is a table with .url);
 ---                                  cb(id) after a pick, cb(nil) when dismissed, nothing stored then;
+---                                  when the pick cannot be remembered (state file not writable)
+---                                  cb still fires once, as cb(id, err) with err the message of
+---                                  the write error: the choice counts, only its memory is lost;
 ---                                  opts.prompt_prefix overrides the one from `new`
 ---   path()                         the state file's path
 function M.new(path, opts)
@@ -51,10 +54,14 @@ function M.new(path, opts)
     local prefix = choose_opts and choose_opts.prompt_prefix or default_prefix
     local prompt = (prefix and prefix .. ': ' or '') .. 'model on ' .. endpoint.url
     vim.ui.select(models, { prompt = prompt }, function(id)
+      local err
       if id then
-        self.set_model(endpoint.url, id)
+        local ok, raised = pcall(self.set_model, endpoint.url, id)
+        if not ok then
+          err = tostring(raised)
+        end
       end
-      cb(id)
+      cb(id, err)
     end)
   end
 

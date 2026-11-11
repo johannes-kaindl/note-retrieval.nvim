@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/live_indexer.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/live_indexer.lua) — do not edit; re-vendor
 -- The live indexer: one vector per note in memory, kept current note by note (`update`, `remove`,
 -- `rename`), rebuilt all at once (`reindex_all`) or only where it is missing (`heal_missing`), and
 -- written as one VRIX container with the guards of `index_guard` in front of every write. A

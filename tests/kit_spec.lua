@@ -54,7 +54,7 @@ end)
 T.case('kit: every copy has the provenance line the manifest names, and the manifest the tag', function()
   local m = manifest()
   T.eq(m.source, 'nvim-kit')
-  T.eq(m.tag, '0.16.1')
+  T.eq(m.tag, '0.17.0')
   T.eq(m.license, 'AGPL-3.0-only')
   local expected = '-- vendored from nvim-kit@' .. m.tag
   local seen = 0

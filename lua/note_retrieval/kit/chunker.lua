@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/chunker.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/chunker.lua) — do not edit; re-vendor
 -- Splitting Markdown into overlapping chunks for embedding: a Lua port of code-kit `chunker.ts`
 -- (0.31.1), which in turn is vault-rag's indexer (800 characters per unit, 150 overlap).
 -- Lengths and offsets count UTF-16 code units like JavaScript's `string.length`, so the chunks of

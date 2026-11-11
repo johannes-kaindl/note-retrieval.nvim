@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/vrix.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/vrix.lua) — do not edit; re-vendor
 -- The VRIX container: the one file (`index.bin`) of a note index. A port of code-kit
 -- `index-container.ts` (tag 0.31.1) and its `crc32`, proven by the conformance vectors and byte
 -- for byte what vault-rag writes.

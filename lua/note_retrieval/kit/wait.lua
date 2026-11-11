@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.16.1 (lua/nvim_kit/wait.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.0 (lua/nvim_kit/wait.lua) — do not edit; re-vendor
 -- Waiting for an asynchronous answer where a plugin must return a value (a health check, a
 -- `:write` that has to know the result).
 local M = {}

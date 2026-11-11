@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+- A demo image in the README (`docs/images/demo.gif` and `demo.mp4`, 800 px, 20 fps): the own index is built (`status` shows mode `own`), the panel of related notes opens beside a note, a search by meaning finds a note. Reproducible with `make demo` (`docs/demo/demo.tape`, `docs/demo/init.lua`); it plays on a throw-away copy of the fixture vault with throw-away `XDG_*_HOME` folders and needs vhs, ffmpeg and an embedding server (Ollama with `qwen3-embedding:0.6b` by default, `NOTE_RETRIEVAL_DEMO_URL` and `NOTE_RETRIEVAL_DEMO_MODEL` override).
+
 ### Changed
 - The mode of the plugin's own index is `own` everywhere (was `eigen`, a German word in an English interface). Visible: `:NoteRetrieval status` shows `mode: own (the index of this plugin)`, `:checkhealth` the same line, and README, manual and `docs/` use the new name. Lua API: `require('note_retrieval').status()` returns `root_mode` and `mode` as `own`, and the error kind `not-eigen` of the index writer is now `not-own`. Nothing on disk changes: the mode is not stored in the state file, the index or its manifest, and `:NoteRetrieval probe --json` does not carry it, so no migration is needed. Code that compares the old value must follow.
 - Vendors nvim-kit 0.17.1 (was 0.17.0): only a comment in `walk.lua` changes (the measurement note no longer names a private vault). No visible change.

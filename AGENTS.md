@@ -33,6 +33,7 @@ Boundaries: the index core (chunker, vectors, VRIX, guards, live indexer, probe)
 make check           # stylua --check · selene · tests in headless Neovim · vendor-check (../tools/kit/vendor.py)
 make release-check   # Bibliothek gate over everything since the last tag (../tools/bibliothek/gate.py)
 make live            # one run against a real embedding server; tests/live.lua (NOTE_RETRIEVAL_LIVE_URL and _MODEL required)
+make demo            # README demo: vhs records docs/demo/demo.tape, ffmpeg writes docs/images/demo.gif and demo.mp4 (20 fps); needs vhs, ffmpeg and an embedding server (Ollama with qwen3-embedding:0.6b, see docs/demo/init.lua); plays on a throw-away copy of tests/fixtures/vault and throw-away XDG folders
 make parity          # writer parity: own writer chain against a vault-rag index of the same notes, reads only; tests/parity.lua (PARITY_VAULT = a copy with _vaultrag/index.bin, PARITY_URL; exit 0 parity, 1 deviation, 2 no valid measurement)
 make test NVIM=/path/to/nvim   # the suite with another Neovim — the minimum version run:
 # D=$(mktemp -d); curl -sfL https://github.com/neovim/neovim/releases/download/v0.10.4/nvim-macos-arm64.tar.gz | tar -xz -C "$D"; xattr -cr "$D"
@@ -60,5 +61,5 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 
 ## Abweichungen von der Leitkonvention
 
-- README-Tier: `nvim-plugin` (`repo_tiers`), gemessen am 2026-11-10 mit `readme_lint.py`: 0 Befunde (Pflichtsektionen Requirements, Install, Usage, Configuration, License; Prüfungen vimdoc-present, install-lua-spec, license-files). Die Defaults der Configuration-Tabelle prüft kein Test (siehe unten). Noch kein Hero-Bild (CORE-META-03): die README zeigt das Panel als Text, ausdrücklich als Beispiel gekennzeichnet (Notizen aus der Fixture, Werte nicht gemessen).
+- README-Tier: `nvim-plugin` (`repo_tiers`), gemessen am 2026-11-10 mit `readme_lint.py`: 0 Befunde (Pflichtsektionen Requirements, Install, Usage, Configuration, License; Prüfungen vimdoc-present, install-lua-spec, license-files). Die Defaults der Configuration-Tabelle prüft kein Test (siehe unten). Hero-Bild seit dem Demo (CORE-META-03): `docs/images/demo.gif` und `demo.mp4`, reproduzierbar mit `make demo`; der Text-Beispielblock des Panels bleibt unter dem Bild, ausdrücklich als Beispiel gekennzeichnet (Notizen aus der Fixture, Werte nicht gemessen).
 - Nutzer-Doku doppelt angelegt: `:help note-retrieval` ist das Handbuch, `docs/` die Diátaxis-Doku. Anders als bei transmute.nvim stehen Befehle und Optionen auch in README und `docs/reference/`; `tests/docs_spec.lua` prüft Namen von Optionen, Befehlen und `<Plug>`-Belegungen gegen den Code, die Standardwerte prüft kein Test.

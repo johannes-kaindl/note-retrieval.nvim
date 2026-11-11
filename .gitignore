@@ -4,3 +4,4 @@
 .superpowers/
 __pycache__/
 doc/tags
+docs/demo/.build/

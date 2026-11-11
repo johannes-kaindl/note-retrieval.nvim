@@ -4,6 +4,8 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
+<img src="https://raw.githubusercontent.com/johannes-kaindl/note-retrieval.nvim/main/docs/images/demo.gif" width="800" alt="Neovim on a small vault of notes: :NoteRetrieval reindex builds the own index (status shows mode own, 20 notes), :NoteRetrieval related opens a panel of related notes beside the note Hydration, and :NoteRetrieval search finds the note Crumb notes for the query why does my loaf have big holes">
+
 `:NoteRetrieval related` opens the panel beside the note you are in. Example for `Baking/hydration.md` of the fixture vault in `tests/fixtures/vault/` (the notes are real, the scores are illustrative, not measured):
 
 ```text

@@ -51,6 +51,7 @@ Tools: `brew install stylua selene`. Neovim ≥ 0.10. The Dach (`..`) must be pr
 - **Every module under `lua/note_retrieval/` except `kit/` carries `-- domain: note_retrieval` in its first five lines** (`tests/kit_spec.lua` checks it). Fachfreie helpers belong in nvim-kit (`../AGENTS.md`, "Bibliothek ab Eins"); the gate does not see `local function`s in a domain module, the reviewer does.
 - `http_stub` is vendored for tests only; no plugin module requires it.
 - Every test has a counter-check that shows it can fail.
+- **Why a limit stays is written down:** `docs/internal/decisions.md` holds the reasons for choices that look like gaps (no merge on `changed`, a polling debouncer, the waiting model picker, the unsplit first step), each with its measurement and date. A reason that no longer holds is a reason to change the code, not to keep the entry.
 - **A user-visible change updates the docs in the same commit:** `doc/note-retrieval.txt` for commands, keys and options, and `README.md` and `docs/` where they repeat it (the panel text, the marks, the limits). `tests/docs_spec.lua` checks option tags, command tags and `<Plug>` tags against the code, and that README and the reference name every command, option and `<Plug>` mapping.
 
 ## Memory

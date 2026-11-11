@@ -635,6 +635,7 @@ function Ix:reindex(cb, opts)
       end
       self.backup_next = false
       self.last_error = result_err
+      run.refused = result_err ~= nil -- the run finished, its result is not on disk
       cb(report, result_err)
     end)
   end)
@@ -798,6 +799,7 @@ function Ix:sync_vault(cb)
   local root = self.root
   local function finish(result, err)
     run.running = false
+    run.refused = err ~= nil
     self.last_error = err
     cb(result, err)
   end
@@ -1211,7 +1213,8 @@ end
 
 --- What `root` has: `{ indexer, running, kind ('reindex'|'sync' while running), stopping, done, indexed, total, started (ms since the
 --- epoch), lock = { state = 'free'|'own'|'other'|'stale', age }, last_error, warnings, report,
---- model, path }`. Needs no indexer; the lock is read from the file.
+--- model, path }`; `refused` is true when the last run finished but its result was not written (its
+--- `report` then says what was embedded, nothing of it is on disk). Needs no indexer; the lock is read from the file.
 function M.status(root)
   local key = normalise(root)
   local ix = entries[key]
@@ -1226,6 +1229,7 @@ function M.status(root)
     total = run.total or 0,
     started = run.started,
     report = run.report,
+    refused = run.refused == true,
     lock = lock_info(ix and ix.files or state_files(key), ix ~= nil and ix.lock ~= nil),
     last_error = ix and ix.last_error or nil,
     warnings = ix and vim.list_slice(ix.warnings, 1) or {},

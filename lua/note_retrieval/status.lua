@@ -182,13 +182,15 @@ function M.reindex_lines(info, add)
     local failed = #(r.report.failed or {})
     add(
       'last run',
-      ('%d embedded, %d failed%s'):format(
+      ('%d embedded, %d failed%s%s'):format(
         r.report.added or 0,
         failed,
-        r.report.cancelled and ', stopped early' or ''
+        r.report.cancelled and ', stopped early' or '',
+        r.refused and ' (not written)' or ''
       )
     )
-    if failed > 0 then
+    -- A refused run changed nothing: its failed notes are not "missing", the error row says why.
+    if failed > 0 and not r.refused then
       add('failed', 'those notes are missing from the index; :NoteRetrieval reindex tries them again')
     end
   end

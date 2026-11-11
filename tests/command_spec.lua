@@ -640,6 +640,8 @@ T.case('reindex: a server that dies mid-run leaves the failed count in the repor
         status
       )
       T.ok(status:find('failed:', 1, true), status)
+      -- counter: this run was written (the index holds its notes), so it is not marked
+      T.ok(status:find('not written', 1, true) == nil, status)
     end)
   end)
 end)
@@ -654,6 +656,12 @@ T.case('reindex: a run that embedded nothing writes nothing and is an error', fu
       T.ok(text:find('the index on disk was not replaced', 1, true), text)
       T.eq(level, vim.log.levels.ERROR)
       T.eq(vim.uv.fs_stat(root .. '/_idx/index.bin'), nil)
+      -- status must not read like a success: nothing of this run is on disk
+      run('status')
+      local status = seen.notes[#seen.notes]
+      T.ok(status:match('last run:  0 embedded, %d+ failed %(not written%)'), status)
+      T.ok(status:find('error:', 1, true), status)
+      T.ok(status:find('missing from the index', 1, true) == nil, status) -- nothing was lost: the run changed nothing
     end)
   end)
 end)

@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/http_stub.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/http_stub.lua) — do not edit; re-vendor
 -- A tiny HTTP/1.1 server for tests, on 127.0.0.1 with a free port, in the test's own Neovim
 -- (vim.uv). It answers fixed responses per route and records every request. Wait for an answer
 -- with vim.wait(); the loop runs while the test waits.

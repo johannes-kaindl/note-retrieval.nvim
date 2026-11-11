@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/lock.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/lock.lua) — do not edit; re-vendor
 -- A lock file, so that two Neovim instances never write the same file at once. A port of the
 -- Lock of code-kit's retrieval store (`src/py/retrieval/store.py`, 0.31.1): the exclusive create
 -- ('wx') is the arbiter; a lock older than stale_after_s belongs to a dead process and is taken

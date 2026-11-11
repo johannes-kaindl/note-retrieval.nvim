@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/llm.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/llm.lua) — do not edit; re-vendor
 -- Talking to an OpenAI-compatible model server (Ollama, LM Studio, Open WebUI, hosted APIs):
 -- endpoints in priority order, keys from an environment variable or a command, backend
 -- detection, the model list, and asynchronous, cancellable chat and embedding calls over `curl`.

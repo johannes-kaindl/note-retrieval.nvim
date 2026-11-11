@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Changed
+- Vendors nvim-kit 0.17.1 (was 0.17.0): only a comment in `walk.lua` changes (the measurement note no longer names a private vault). No visible change.
+
 ## [0.1.1] - 2026-11-11
 
 ### Fixed

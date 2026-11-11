@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/text.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/text.lua) — do not edit; re-vendor
 -- Small text pieces for plugin views.
 local M = {}
 

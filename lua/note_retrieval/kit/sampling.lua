@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/sampling.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/sampling.lua) — do not edit; re-vendor
 -- Request profiles for local and hosted LLM backends: which sampling values, which
 -- reasoning_effort and which minimum token budget to send per model family × mode, and which
 -- of those fields a backend honours. A port of code-kit src/ts/pure/sampling-profiles.ts

@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/endpoint_model.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/endpoint_model.lua) — do not edit; re-vendor
 -- The model a person chose per server, remembered across sessions in a JSON state file:
 -- { "models": { "<endpoint url>": "<model id>" } }, through nvim_kit.store (atomic write, re-read
 -- before every write, a broken file set aside). The file's path belongs to the plugin.

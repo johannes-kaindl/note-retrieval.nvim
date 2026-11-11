@@ -1,4 +1,4 @@
--- vendored from nvim-kit@0.17.0 (lua/nvim_kit/index_delta.lua) — do not edit; re-vendor
+-- vendored from nvim-kit@0.17.1 (lua/nvim_kit/index_delta.lua) — do not edit; re-vendor
 -- The numbers behind "embedded / total notes" and the split of the healing targets. A port of
 -- code-kit `index-delta.ts` (tag 0.31.1, from vault-rag), proven by its conformance vectors.
 -- Empty notes (nothing but frontmatter) have no chunks and so can never land in an index: they

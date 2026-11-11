@@ -90,7 +90,7 @@ T.case('notify: error level, except cancelled', function()
   T.eq({ seen[1][2], seen[2][2] }, { vim.log.levels.ERROR, vim.log.levels.INFO })
 end)
 
-T.case('text: the hints for a missing index and a missing row name reindex in mode eigen only', function()
+T.case('text: the hints for a missing index and a missing row name reindex in mode own only', function()
   local missing = 'no index file at /x/index.bin'
   for _, mode in ipairs({ 'obsidian', false }) do
     local opts = mode and { mode = mode } or nil
@@ -104,13 +104,13 @@ T.case('text: the hints for a missing index and a missing row name reindex in mo
     T.ok(not messages.text({ kind = 'no-index', detail = missing }, opts):find('reindex', 1, true), 'table')
   end
   has(
-    messages.text(missing, { mode = 'eigen' }),
+    messages.text(missing, { mode = 'own' }),
     ':NoteRetrieval reindex',
     ':checkhealth note_retrieval',
     missing
   )
-  has(messages.text(search.NO_ROW, { mode = 'eigen' }), 'older than the note', ':NoteRetrieval reindex')
-  has(messages.text({ kind = 'no-index', detail = missing }, { mode = 'eigen' }), ':NoteRetrieval reindex')
+  has(messages.text(search.NO_ROW, { mode = 'own' }), 'older than the note', ':NoteRetrieval reindex')
+  has(messages.text({ kind = 'no-index', detail = missing }, { mode = 'own' }), ':NoteRetrieval reindex')
   -- the sentence of a vault without a root does not change with the mode
-  T.eq(messages.text(roots.NO_ROOT, { mode = 'eigen' }), 'note-retrieval: ' .. roots.NO_ROOT)
+  T.eq(messages.text(roots.NO_ROOT, { mode = 'own' }), 'note-retrieval: ' .. roots.NO_ROOT)
 end)

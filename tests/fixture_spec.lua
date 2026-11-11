@@ -104,7 +104,7 @@ T.case('the generated index of the fixture loads: twenty rows, the notes in orde
     local loaded = assert(index.load(root, config.resolve()))
     T.eq(loaded.index.count, 20)
     T.eq(loaded.paths, paths)
-    T.eq(loaded.mode, 'eigen')
+    T.eq(loaded.mode, 'own')
     T.eq(loaded.manifest.embedding_model, 'fixture-model')
   end)
 end)

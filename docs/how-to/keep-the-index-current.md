@@ -1,6 +1,6 @@
 # How-to: keep the index current
 
-This applies to your own index (`eigen`). An index of the Obsidian plugin is kept by Obsidian; here `reindex` and `update` only say that the index is read-only, and update-on-save is never installed.
+This applies to your own index (`own`). An index of the Obsidian plugin is kept by Obsidian; here `reindex` and `update` only say that the index is read-only, and update-on-save is never installed.
 
 ## Update on save
 

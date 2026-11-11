@@ -270,7 +270,7 @@ function M.lines(result)
   return lines
 end
 
---- The run after a full reindex in mode eigen (option `probe_auto`): `M.AUTO_N` notes, one short
+--- The run after a full reindex in mode own (option `probe_auto`): `M.AUTO_N` notes, one short
 --- message. It does nothing while a writer run is active in `root`, says nothing when no note
 --- qualifies, and reports a search that fails instead of raising.
 ---@param root string
@@ -285,7 +285,7 @@ function M.auto(root)
         return vim.notify(
           ('note-retrieval: probe after the reindex stopped after %d notes: %s'):format(
             done,
-            messages.sentence(err, { mode = 'eigen' })
+            messages.sentence(err, { mode = 'own' })
           ),
           vim.log.levels.WARN
         )

@@ -13,7 +13,7 @@ The lock is per write, not per run: two Neovim instances that reindex the same v
 Why not a run marker or a lock over the whole run: the case needs two reindexes started by hand; a marker needs cleaning up after a crash, and a lock over the run blocks `update` and saving in every other Neovim for minutes. Decided by Johannes on 2026-11-11: leave it, documented in [limits](../explanation/limits.md). Revisit if the doubled work or the messages are reported as a problem.
 
 ### The mode is read once per session by the readers, fresh by the writer
-`index.locate` caches mode and index path per root until `:NoteRetrieval reset` or `:checkhealth` (which resets it). Every write resolves the mode again (`mode_refusal`, `indexer.lua`), so a stale cache cannot let the writer touch an index that became the Obsidian plugin's (`tests/indexer_spec.lua`, "mode flip"). A reader with a stale mode shows `eigen` for a vault that turned `obsidian` until `reset`; `status` says so in its last line.
+`index.locate` caches mode and index path per root until `:NoteRetrieval reset` or `:checkhealth` (which resets it). Every write resolves the mode again (`mode_refusal`, `indexer.lua`), so a stale cache cannot let the writer touch an index that became the Obsidian plugin's (`tests/indexer_spec.lua`, "mode flip"). A reader with a stale mode shows `own` for a vault that turned `obsidian` until `reset`; `status` says so in its last line.
 Why not re-resolve on every read: every `related` call would read `data.json` from disk; the case needs the person to install the Obsidian plugin into a vault during a session. (Checked 2026-11-11.)
 
 ### The debouncer polls while a run is busy

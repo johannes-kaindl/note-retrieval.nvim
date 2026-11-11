@@ -119,8 +119,8 @@ end
 --- The mode of the vault at `root`: `'obsidian'` when the Vault Retrieval plugin of Obsidian is
 --- installed in it (`.obsidian/plugins/vault-retrieval/`) and an `index.bin` lies in the folder
 --- its `data.json` names (`indexDir`, default `_vaultrag`) or in `cfg.index_dir`; otherwise
---- `'eigen'`. The second result carries what the caller needs next: `{ index_dir, exclude }`
---- (obsidian: from `data.json`, a missing key meaning the plugin's default; eigen: from `cfg`).
+--- `'own'`. The second result carries what the caller needs next: `{ index_dir, exclude }`
+--- (obsidian: from `data.json`, a missing key meaning the plugin's default; own: from `cfg`).
 --- A `data.json` that cannot be read or has the wrong shape gives `nil, message`: it is reported,
 --- the defaults do not stand in for it, and the file is left alone.
 function M.mode(root, cfg)
@@ -128,7 +128,7 @@ function M.mode(root, cfg)
   local own = { index_dir = cfg.index_dir, exclude = cfg.exclude or {} }
   local plugin = root .. '/' .. PLUGIN_DIR
   if kind(plugin) ~= 'directory' then
-    return 'eigen', own
+    return 'own', own
   end
   local data, err = read_settings(plugin .. '/data.json')
   if err then
@@ -153,7 +153,7 @@ function M.mode(root, cfg)
       return 'obsidian', { index_dir = candidate, exclude = exclude }
     end
   end
-  return 'eigen', own
+  return 'own', own
 end
 
 --- The name of the folders a vault gets under `stdpath('data')` (its own index) and `stdpath('state')`
@@ -165,7 +165,7 @@ function M.hash(root)
   return vim.fn.sha256(absolute(root)):sub(1, 16)
 end
 
---- The index file: in mode `'eigen'` without `info.index_dir` under `stdpath('data')`, in the folder
+--- The index file: in mode `'own'` without `info.index_dir` under `stdpath('data')`, in the folder
 --- `M.hash(root)`; otherwise `<root>/<info.index_dir>/index.bin`. `info` is the second result of `mode`.
 function M.index_path(root, mode, info)
   root = absolute(root)
@@ -173,7 +173,7 @@ function M.index_path(root, mode, info)
   if dir then
     return root .. '/' .. dir:gsub('/+$', '') .. '/index.bin'
   end
-  assert(mode == 'eigen', 'note_retrieval.roots: an obsidian index needs info.index_dir')
+  assert(mode == 'own', 'note_retrieval.roots: an obsidian index needs info.index_dir')
   return vim.fn.stdpath('data') .. '/note-retrieval/' .. M.hash(root) .. '/index.bin'
 end
 

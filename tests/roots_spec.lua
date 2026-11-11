@@ -77,12 +77,12 @@ T.case('find_root: a path outside every configured root falls back to the search
   end)
 end)
 
-T.case('mode: without the Obsidian plugin the mode is eigen, the options carry over', function()
+T.case('mode: without the Obsidian plugin the mode is own, the options carry over', function()
   with_vault({ ['.obsidian/app.json'] = '{}', ['_vaultrag/index.bin'] = 'x' }, function(root)
     local mode, info = roots.mode(root)
-    T.eq({ mode, info }, { 'eigen', { exclude = {} } })
+    T.eq({ mode, info }, { 'own', { exclude = {} } })
     mode, info = roots.mode(root, { index_dir = '_idx', exclude = { 'Tmp/' } })
-    T.eq({ mode, info }, { 'eigen', { index_dir = '_idx', exclude = { 'Tmp/' } } })
+    T.eq({ mode, info }, { 'own', { index_dir = '_idx', exclude = { 'Tmp/' } } })
   end)
 end)
 
@@ -117,14 +117,14 @@ T.case('mode: indexDir and exclude from data.json, an empty exclude stays empty'
   end)
 end)
 
-T.case('mode: the plugin without an index.bin where data.json says is eigen', function()
+T.case('mode: the plugin without an index.bin where data.json says is own', function()
   with_vault({
     [PLUGIN .. 'data.json'] = '{"indexDir":"idx"}',
     ['_vaultrag/index.bin'] = 'x', -- the default folder is not asked when data.json names another
     ['idx/'] = '',
   }, function(root)
     local mode = roots.mode(root)
-    T.eq(mode, 'eigen')
+    T.eq(mode, 'own')
   end)
 end)
 
@@ -140,7 +140,7 @@ T.case(
       -- without the plugin an index in index_dir is the plugin's own
       vim.fn.delete(root .. '/.obsidian', 'rf')
       mode, info = roots.mode(root, { index_dir = 'mine' })
-      T.eq({ mode, info }, { 'eigen', { index_dir = 'mine', exclude = {} } })
+      T.eq({ mode, info }, { 'own', { index_dir = 'mine', exclude = {} } })
     end)
   end
 )
@@ -173,24 +173,24 @@ T.case('mode: a broken data.json is reported, left in place, and no defaults sta
 end)
 
 T.case(
-  'index_path: eigen without index_dir under stdpath(data), keyed by 16 hex characters of the root',
+  'index_path: own without index_dir under stdpath(data), keyed by 16 hex characters of the root',
   function()
     with_vault({}, function(root)
-      local path = roots.index_path(root, 'eigen', { exclude = {} })
+      local path = roots.index_path(root, 'own', { exclude = {} })
       local want = vim.fn.stdpath('data')
         .. '/note-retrieval/'
         .. vim.fn.sha256(root):sub(1, 16)
         .. '/index.bin'
       T.eq(path, want)
       T.ok(path:find('/note%-retrieval/%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x/index%.bin$'), path)
-      T.eq(roots.index_path(root, 'eigen'), want)
+      T.eq(roots.index_path(root, 'own'), want)
       -- the same vault gives the same folder; another one another
-      T.eq(roots.index_path(root .. '/', 'eigen'), want)
-      T.ok(roots.index_path(root .. '/x', 'eigen') ~= want)
+      T.eq(roots.index_path(root .. '/', 'own'), want)
+      T.ok(roots.index_path(root .. '/x', 'own') ~= want)
     end)
     -- a fixed vector, so that the key is the SHA-256 of the path and not just something stable
     T.eq(
-      roots.index_path('/x', 'eigen'),
+      roots.index_path('/x', 'own'),
       vim.fn.stdpath('data') .. '/note-retrieval/b3d1db318671a024/index.bin'
     )
   end
@@ -205,7 +205,7 @@ T.case(
       T.eq(hash, vim.fn.sha256(root):sub(1, 16))
       T.eq(roots.hash(root .. '/'), hash) -- the spelling of the path does not matter
       T.ok(roots.hash(root .. '/x') ~= hash)
-      T.eq(vim.fs.basename(vim.fs.dirname(roots.index_path(root, 'eigen'))), hash)
+      T.eq(vim.fs.basename(vim.fs.dirname(roots.index_path(root, 'own'))), hash)
     end)
     -- a fixed vector, so that it is the SHA-256 of the path and not just something stable
     T.eq(roots.hash('/x'), 'b3d1db318671a024')
@@ -214,7 +214,7 @@ T.case(
 
 T.case('index_path: with an index_dir the index lies inside the root, in either mode', function()
   with_vault({}, function(root)
-    T.eq(roots.index_path(root, 'eigen', { index_dir = '_idx' }), root .. '/_idx/index.bin')
+    T.eq(roots.index_path(root, 'own', { index_dir = '_idx' }), root .. '/_idx/index.bin')
     T.eq(roots.index_path(root, 'obsidian', { index_dir = 'a b/c/' }), root .. '/a b/c/index.bin')
     T.raises(function()
       roots.index_path(root, 'obsidian', {})

@@ -4,7 +4,7 @@
 
 | Mode | Shown as | Who writes | When |
 |---|---|---|---|
-| Own index | `eigen` | this plugin | Default. |
+| Own index | `own` | this plugin | Default. |
 | Obsidian index | `obsidian` | the Obsidian plugin Vault Retrieval; this plugin never | The vault has `.obsidian/plugins/vault-retrieval/` and an `index.bin` in the plugin's `indexDir` (default `_vaultrag`, read from the plugin's `data.json`) or in the option `index_dir`. |
 
 The mode is read fresh before every write, never from a cache.

@@ -258,12 +258,12 @@ T.case('current and load without a cfg argument use the options in effect', func
     index.reset()
     T.eq(assert(index.load(root)).mode, 'obsidian')
   end)
-  -- the options in effect decide the own index folder: without the plugin the vault is "eigen"
+  -- the options in effect decide the own index folder: without the plugin the vault is "own"
   with_vault(GOOD, nil, function(root)
     vim.fn.delete(root .. '/.obsidian/plugins', 'rf')
     require('note_retrieval.config').set({ index_dir = '_vaultrag' })
     local loaded = assert(index.current(root))
-    T.eq(loaded.mode, 'eigen')
+    T.eq(loaded.mode, 'own')
     require('note_retrieval.config').set(nil)
   end)
 end)

@@ -505,7 +505,7 @@ end)
 
 -- The own-index vault of the reindex tests: ten notes that qualify, embeddings of the writer from a
 -- double, `embedder.query` from `with_double`.
-local function with_eigen(fn)
+local function with_own(fn)
   V.with_vault(function(root)
     vim.fn.delete(root .. '/.obsidian/plugins', 'rf')
     vim.fn.delete(root .. '/_vaultrag', 'rf')
@@ -567,8 +567,8 @@ local function wait_for(notes, part)
   )
 end
 
-T.case('reindex in mode eigen: the probe follows on 8 notes and says so in one line', function()
-  with_eigen(function(_, calls)
+T.case('reindex in mode own: the probe follows on 8 notes and says so in one line', function()
+  with_own(function(_, calls)
     capture(function(notes)
       vim.cmd('NoteRetrieval reindex')
       wait_for(notes, 'probe after the reindex: ')
@@ -585,8 +585,8 @@ T.case('reindex in mode eigen: the probe follows on 8 notes and says so in one l
   end)
 end)
 
-T.case('reindex in mode eigen: probe_auto = false switches the follow-up off', function()
-  with_eigen(function(_, calls)
+T.case('reindex in mode own: probe_auto = false switches the follow-up off', function()
+  with_own(function(_, calls)
     vim.g.note_retrieval = { index_dir = '_idx', probe_auto = false }
     capture(function(notes)
       vim.cmd('NoteRetrieval reindex')
@@ -601,7 +601,7 @@ T.case('reindex in mode eigen: probe_auto = false switches the follow-up off', f
 end)
 
 T.case('the automatic probe waits while a writer run is active, and is silent without candidates', function()
-  with_eigen(function(root, calls)
+  with_own(function(root, calls)
     capture(function(notes)
       local status = indexer.status
       indexer.status = function()

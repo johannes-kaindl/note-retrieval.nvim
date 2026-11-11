@@ -100,7 +100,7 @@ A value that fails its check is reported by `:checkhealth note_retrieval` and ke
 
 The plugin reads one of two indexes of a vault, and writes only one.
 
-- **Own index** (shown as `eigen` by `:NoteRetrieval status`): the plugin builds and updates `index.bin` itself. This is the mode for a vault without Obsidian.
+- **Own index** (shown as `own` by `:NoteRetrieval status`): the plugin builds and updates `index.bin` itself. This is the mode for a vault without Obsidian.
 - **Works with Vault Retrieval for Obsidian:** if the vault has the Obsidian plugin Vault Retrieval installed with an index, the plugin reads that index and never writes it (mode `obsidian`). You get related notes and search in Neovim over the index Obsidian maintains; `reindex` and `update` only say that the index is read-only, and update-on-save is never installed. This is an addition, not a requirement.
 
 Why an index has exactly one writer: [docs/explanation/why-one-writer.md](docs/explanation/why-one-writer.md).

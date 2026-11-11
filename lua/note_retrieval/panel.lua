@@ -22,7 +22,7 @@ M.DEBOUNCE_MS = 150
 
 -- The next step for a vault with no usable index, one short line (the panel does not wrap, so the
 -- message of the index with its long path would cut the step off).
-M.HINT_EIGEN = ':NoteRetrieval reindex builds it'
+M.HINT_OWN = ':NoteRetrieval reindex builds it'
 M.HINT_OTHER = ':checkhealth note_retrieval'
 
 local GROUP = 'NoteRetrievalPanel'
@@ -146,7 +146,7 @@ function M.update(buf)
   local loaded, warning = index.current(root)
   if not loaded then
     model.message = warning
-    model.hint = roots.mode(root, cfg) == 'eigen' and M.HINT_EIGEN or M.HINT_OTHER
+    model.hint = roots.mode(root, cfg) == 'own' and M.HINT_OWN or M.HINT_OTHER
   else
     local linked, hidden = {}, 0
     if cfg.hide_linked then

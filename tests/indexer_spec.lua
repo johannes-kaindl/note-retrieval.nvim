@@ -153,7 +153,7 @@ T.case('for_root: lock and backup live in the state folder named by roots.hash',
     T.eq(ix.files.lock, dir .. '/index.lock')
     T.eq(ix.files.backup, dir .. '/index.bin.bak')
     -- the own index of the same root has the same folder name under stdpath('data')
-    T.eq(vim.fs.basename(vim.fs.dirname(roots.index_path(root, 'eigen'))), vim.fs.basename(dir))
+    T.eq(vim.fs.basename(vim.fs.dirname(roots.index_path(root, 'own'))), vim.fs.basename(dir))
   end)
 end)
 
@@ -387,11 +387,11 @@ T.case('mode flip: a root that turns into an Obsidian vault is not written to', 
     update(ix, 'extra.md', '# x\n\nmore')
     local ok, err = ix:persist()
     T.eq(ok, nil)
-    T.eq(err.kind, 'not-eigen')
+    T.eq(err.kind, 'not-own')
     T.ok(err.message:find('belongs to the Obsidian plugin', 1, true), err.message)
     local report, rerr = reindex(ix)
     T.eq(report, nil)
-    T.eq(rerr.kind, 'not-eigen')
+    T.eq(rerr.kind, 'not-own')
     T.eq(sha(obsidian_index), before)
     T.eq(uv.fs_stat(ix.files.lock), nil)
     -- and a root that is Obsidian's gets no new indexer
@@ -533,7 +533,7 @@ T.case('real file system: reindex, load back, backup, and a read-only folder kee
     -- the reader of the plugin reads what the writer wrote; the index folder is not a note
     local loaded = assert(index.load(root, cfg))
     T.eq(loaded.index.count, 4)
-    T.eq(loaded.mode, 'eigen')
+    T.eq(loaded.mode, 'own')
     T.eq(loaded.stamps[1][2] > 0, true)
     -- a second reindex backs up the first
     local first = sha(ix.path)

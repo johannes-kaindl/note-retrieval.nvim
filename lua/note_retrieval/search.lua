@@ -25,7 +25,7 @@ local function find_root(start, opts)
 end
 
 -- The vault's own exclude prefixes (what the index resolved for its root: data.json in mode
--- obsidian, the option in mode eigen) plus the ones the caller passes.
+-- obsidian, the option in mode own) plus the ones the caller passes.
 local function excludes(loaded, opts)
   local out = {}
   for _, p in ipairs(loaded.info and loaded.info.exclude or {}) do

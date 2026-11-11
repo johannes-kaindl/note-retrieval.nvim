@@ -309,7 +309,7 @@ T.case('search: the header model binds only an index that is not ours (mode obsi
       T.eq(seen.manifest.embedding_model, 'test-model')
     end)
   end)
-  -- the same index file in a vault without the Obsidian plugin is "eigen": no manifest is passed
+  -- the same index file in a vault without the Obsidian plugin is "own": no manifest is passed
   with_vault(ROWS, function(root)
     vim.fn.delete(root .. '/.obsidian/plugins', 'rf')
     config.set({ index_dir = '_vaultrag' })

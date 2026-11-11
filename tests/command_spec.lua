@@ -98,6 +98,19 @@ T.case('status: root, mode, notes, model, age, endpoint of the vault of the curr
   end)
 end)
 
+T.case('status: the own index is named `own`, in the words of the mode line', function()
+  V.with_vault(function(root)
+    vim.fn.delete(root .. '/.obsidian/plugins', 'rf') -- no Obsidian plugin here: mode own
+    vim.g.note_retrieval = { index_dir = '_vaultrag', endpoints = V.endpoint('http://127.0.0.1:9') }
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/a.md'))
+    with_ui({}, function(seen)
+      run('status')
+      T.ok(seen.notes[1]:find('mode:      own (the index of this plugin)', 1, true), seen.notes[1])
+      T.ok(seen.notes[1]:find('notes:     3', 1, true), seen.notes[1])
+    end)
+  end)
+end)
+
 T.case('status: a torn index file is shown as a warning, the old index still answers', function()
   V.with_vault(function(root)
     vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/a.md'))
@@ -147,7 +160,7 @@ T.case('reset: the vault settings read once are read again', function()
       T.ok(seen.notes[2]:find('mode:      obsidian', 1, true), 'cached per session: ' .. seen.notes[2])
       run('reset')
       run('status')
-      T.ok(seen.notes[4]:find('mode:      eigen', 1, true) == nil, seen.notes[4]) -- no index there: no mode line
+      T.ok(seen.notes[4]:find('mode:      own', 1, true) == nil, seen.notes[4]) -- no index there: no mode line
       T.ok(seen.notes[4]:find('is missing', 1, true), seen.notes[4])
     end)
   end)
@@ -412,7 +425,7 @@ end
 -- `fn(root, d)` with an own-index vault (no Obsidian plugin folder; the index lives in _idx of the
 -- vault, the lock and backup in a temporary state folder), `extra` notes, `embedder.resolve` and
 -- `embedder.for_indexer` replaced so that `:NoteRetrieval reindex` talks to the double `d`.
-local function with_eigen(extra, dbl, fn)
+local function with_own(extra, dbl, fn)
   V.with_vault(function(root)
     vim.fn.delete(root .. '/.obsidian/plugins', 'rf')
     vim.fn.delete(root .. '/_vaultrag', 'rf')
@@ -491,9 +504,9 @@ T.case('reindex in mode obsidian: a sentence, the index of Obsidian untouched, n
   end)
 end)
 
-T.case('reindex in mode eigen: runs in the background, says how many notes it indexed', function()
+T.case('reindex in mode own: runs in the background, says how many notes it indexed', function()
   local dbl = double()
-  with_eigen(2, dbl, function(root)
+  with_own(2, dbl, function(root)
     with_ui({}, function(seen)
       run('reindex')
       T.ok(seen.notes[1]:find('reindexing ' .. root .. ' with the model m1', 1, true), seen.notes[1])
@@ -511,7 +524,7 @@ end)
 
 T.case('reindex: the command returns at once, Neovim stays responsive during the run', function()
   local dbl = double({ delay = 15 })
-  with_eigen(30, dbl, function(root)
+  with_own(30, dbl, function(root)
     with_ui({}, function(seen)
       run('reindex')
       T.ok(indexer.status(root).running, 'the run did not go to the background')
@@ -528,7 +541,7 @@ end)
 
 T.case('stop during a run: the run ends early, what it reached is written, the rest stays', function()
   local dbl = double({ delay = 15 })
-  with_eigen(200, dbl, function(root)
+  with_own(200, dbl, function(root)
     with_ui({}, function(seen)
       run('stop') -- nothing runs yet
       T.ok(seen.notes[1]:find('no reindex is running in ' .. root, 1, true), seen.notes[1])
@@ -557,7 +570,7 @@ end)
 
 T.case('stop during an update: says the update runs and cannot be stopped, the update still ends', function()
   local dbl = double({ delay = 15 })
-  with_eigen(200, dbl, function(root)
+  with_own(200, dbl, function(root)
     with_ui({}, function(seen)
       run('update')
       T.ok(
@@ -583,7 +596,7 @@ end)
 
 T.case('reindex: a second one while one runs is refused in words', function()
   local dbl = double({ delay = 15 })
-  with_eigen(30, dbl, function()
+  with_own(30, dbl, function()
     with_ui({}, function(seen)
       run('reindex')
       run('reindex')
@@ -598,7 +611,7 @@ end)
 
 T.case('reindex: refusals of the writer are the plain sentences, at the right level', function()
   local dbl = double()
-  with_eigen(0, dbl, function(root)
+  with_own(0, dbl, function(root)
     -- locked by another process
     local ix = assert(indexer.for_root(root, { embedder = dbl.fn, model = 'm1', dim = 4 }))
     local other = assert(lock.acquire(ix.files.lock))
@@ -625,7 +638,7 @@ end)
 
 T.case('reindex: a server that dies mid-run leaves the failed count in the report and in status', function()
   local dbl = double({ die_after = 1 })
-  with_eigen(70, dbl, function(root)
+  with_own(70, dbl, function(root)
     with_ui({}, function(seen)
       run('reindex')
       wait_note(seen, 'could not be embedded')
@@ -653,7 +666,7 @@ end)
 
 T.case('reindex: a run that embedded nothing writes nothing and is an error', function()
   local dbl = double({ die_after = 0 })
-  with_eigen(3, dbl, function(root)
+  with_own(3, dbl, function(root)
     with_ui({}, function(seen)
       run('reindex')
       wait_note(seen, 'could not be embedded')
@@ -673,7 +686,7 @@ end)
 
 T.case('status: progress of a running reindex, then the result', function()
   local dbl = double({ delay = 15 })
-  with_eigen(30, dbl, function(root)
+  with_own(30, dbl, function(root)
     with_ui({}, function(seen)
       run('status') -- no indexer yet: no reindex rows
       T.ok(seen.notes[1]:find('reindex:', 1, true) == nil, seen.notes[1])
@@ -700,7 +713,7 @@ end)
 
 T.case('status: the lock of another Neovim and the last error of a refused write', function()
   local dbl = double()
-  with_eigen(1, dbl, function(root)
+  with_own(1, dbl, function(root)
     local ix = assert(indexer.for_root(root, { embedder = dbl.fn, model = 'm1', dim = 4 }))
     local other = assert(lock.acquire(ix.files.lock))
     with_ui({}, function(seen)
@@ -930,10 +943,10 @@ T.case(
 )
 
 T.case(
-  'update in mode eigen: embeds what is missing, says the counts, a second one finds nothing to do',
+  'update in mode own: embeds what is missing, says the counts, a second one finds nothing to do',
   function()
     local dbl = double()
-    with_eigen(2, dbl, function(root)
+    with_own(2, dbl, function(root)
       with_ui({}, function(seen)
         run('update')
         T.ok(

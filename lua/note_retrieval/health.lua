@@ -93,7 +93,7 @@ local function vault(cfg)
   if mode == 'obsidian' then
     vim.health.ok('mode: obsidian (the index of the Vault Retrieval plugin; read only here)')
   else
-    vim.health.ok('mode: eigen (the index of this plugin)')
+    vim.health.ok('mode: own (the index of this plugin)')
   end
   local path = roots.index_path(root, mode, info)
   -- `load` takes the mode cached for the root; `roots.mode` above read it fresh. Forget the cached

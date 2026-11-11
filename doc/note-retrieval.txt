@@ -1,6 +1,6 @@
 *note-retrieval.txt*  Related notes and semantic search over a Markdown vault
 
-Related notes and semantic search over a folder of Markdown notes. The plugin reads one index of the vault and writes only its own: the index of the Obsidian plugin Vault Retrieval is only read (mode `obsidian`), otherwise the plugin keeps its own index (shown as `eigen` by `:NoteRetrieval status`). Pages outside Neovim: docs/README.md in the plugin's repository.
+Related notes and semantic search over a folder of Markdown notes. The plugin reads one index of the vault and writes only its own: the index of the Obsidian plugin Vault Retrieval is only read (mode `obsidian`), otherwise the plugin keeps its own index (shown as `own` by `:NoteRetrieval status`). Pages outside Neovim: docs/README.md in the plugin's repository.
 
 ==============================================================================
 COMMANDS                                                *:NoteRetrieval*

@@ -65,10 +65,10 @@ local TEXT = {
   ['cancelled'] = 'Cancelled.',
 }
 
--- The next step for a missing or unusable index. In mode eigen the plugin builds the index
+-- The next step for a missing or unusable index. In mode own the plugin builds the index
 -- itself; in mode obsidian (or when the mode is not known) it only says where to look.
 local function no_index_step(mode)
-  if mode == 'eigen' then
+  if mode == 'own' then
     return 'Run :NoteRetrieval reindex to build it (:checkhealth note_retrieval shows which index is looked for).'
   end
   return 'Run :checkhealth note_retrieval to see which index is looked for.'
@@ -82,7 +82,7 @@ local function of_string(msg, mode)
   -- early (an unknown subcommand) must not.
   if msg == require('note_retrieval.search').NO_ROW then
     local text = msg .. '. It is new, was left out, or the index is older than the note.'
-    if mode == 'eigen' then
+    if mode == 'own' then
       text = text .. ' :NoteRetrieval reindex brings the index up to date.'
     end
     return text
@@ -109,7 +109,7 @@ end
 
 --- The sentence for an error value, without the plugin's name (for :checkhealth, which has its own
 --- heading). `opts.mode` is the mode of the vault the error is about, when the caller knows it: in
---- mode `eigen` the hints for a missing index and a missing row name `:NoteRetrieval reindex`.
+--- mode `own` the hints for a missing index and a missing row name `:NoteRetrieval reindex`.
 ---@param err string|table a message from `related`/the index, or `{ kind, detail, … }`
 ---@param opts? { mode?: string }
 ---@return string

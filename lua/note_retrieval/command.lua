@@ -140,7 +140,7 @@ end
 
 --- :NoteRetrieval reindex — build the index of the vault of the current note again from its notes,
 --- in the background (progress in `:NoteRetrieval status` and `indexer.statusline()`). Only in mode
---- eigen: an index of the Obsidian plugin is never written here.
+--- own: an index of the Obsidian plugin is never written here.
 function M.reindex()
   local cfg = options()
   local root, why = require('note_retrieval.status').current_root(cfg)
@@ -176,7 +176,7 @@ function M.reindex()
       vim.log.levels.WARN
     )
   end
-  -- Not before the index header: in mode eigen the model is the option, the remembered one or asked.
+  -- Not before the index header: in mode own the model is the option, the remembered one or asked.
   require('note_retrieval.embedder').resolve(cfg, nil, function(resolved, err)
     if not resolved then
       return messages.notify(err, { mode = mode })
@@ -227,7 +227,7 @@ end
 
 --- :NoteRetrieval update — bring the own index in line with the notes of the vault of the current
 --- note: embed the new and changed ones, drop the deleted ones, write once; in the background. Only in
---- mode eigen: an index of the Obsidian plugin is never written here.
+--- mode own: an index of the Obsidian plugin is never written here.
 function M.update()
   local cfg = options()
   local root, why = require('note_retrieval.status').current_root(cfg)

@@ -2,7 +2,7 @@
 -- The index in memory: loaded on first need, reloaded when the file changes, and never written.
 -- In mode 'obsidian' the file belongs to the Obsidian plugin (one writer per index), so nothing in
 -- this module has a write path: it reads through `readonly_storage()` only, whose `write` and
--- `mkdir` raise. The own index (mode 'eigen') gets its writer in a later module.
+-- `mkdir` raise. The own index (mode 'own') gets its writer in a later module.
 local config = require('note_retrieval.config')
 local date = require('note_retrieval.kit.date')
 local guard = require('note_retrieval.kit.index_guard')
@@ -87,7 +87,7 @@ local function locate(root, cfg)
   end
   entry = { path = roots.index_path(root, mode, info), mode = mode, info = info }
   state[root] = entry
-  if mode == 'eigen' then
+  if mode == 'own' then
     -- Lazy: loading the plugin loads no module; saves of an own index are heard from the first use.
     require('note_retrieval.indexer').attach_on_save(root)
   end

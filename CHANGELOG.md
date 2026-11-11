@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format is based on 
 ## [Unreleased]
 
 ### Changed
+- The mode of the plugin's own index is `own` everywhere (was `eigen`, a German word in an English interface). Visible: `:NoteRetrieval status` shows `mode: own (the index of this plugin)`, `:checkhealth` the same line, and README, manual and `docs/` use the new name. Lua API: `require('note_retrieval').status()` returns `root_mode` and `mode` as `own`, and the error kind `not-eigen` of the index writer is now `not-own`. Nothing on disk changes: the mode is not stored in the state file, the index or its manifest, and `:NoteRetrieval probe --json` does not carry it, so no migration is needed. Code that compares the old value must follow.
 - Vendors nvim-kit 0.17.1 (was 0.17.0): only a comment in `walk.lua` changes (the measurement note no longer names a private vault). No visible change.
 
 ## [0.1.1] - 2026-11-11

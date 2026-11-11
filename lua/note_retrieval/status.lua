@@ -14,7 +14,7 @@ local M = {}
 
 local MODE_TEXT = {
   obsidian = 'obsidian (the index of the Vault Retrieval plugin, read only)',
-  eigen = 'eigen (the index of this plugin)',
+  own = 'own (the index of this plugin)',
 }
 
 -- The path of a buffer that holds a file, or nil (a scratch buffer such as the panel or the
@@ -158,7 +158,7 @@ end
 --- nothing while no reindex ran in this session and the lock is free. `add(label, value)` adds a row.
 function M.reindex_lines(info, add)
   local r = info.reindex
-  if not r or info.root_mode ~= 'eigen' then
+  if not r or info.root_mode ~= 'own' then
     return
   end
   if r.running then

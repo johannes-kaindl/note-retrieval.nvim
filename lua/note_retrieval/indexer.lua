@@ -1,12 +1,12 @@
 -- domain: note_retrieval
--- The writer of the own index (mode 'eigen'): one indexer per vault root, a full reindex with
+-- The writer of the own index (mode 'own'): one indexer per vault root, a full reindex with
 -- progress, and every write behind the same four steps - mode check, lock, backup, the kit's guards
 -- and atomic write. Nothing here runs in mode 'obsidian': the file belongs to the Obsidian plugin.
 --
 -- Every write of the kit's `live_indexer` (a live persist, an intermediate state of a reindex, the
 -- state after a cancel) goes through the storage wrapper below, so none of them can skip a step.
 -- Errors are values `{ kind, message }` (`message` is a plain sentence with the next step); the
--- kinds are: locked, not-eigen, options-changed, model-mismatch, dim-mismatch, shrink, not-ready,
+-- kinds are: locked, not-own, options-changed, model-mismatch, dim-mismatch, shrink, not-ready,
 -- unreadable, changed, backup-failed, write-failed, running, no-notes, incomplete, failed, no-indexer.
 local config = require('note_retrieval.config')
 local debounce = require('note_retrieval.kit.debounce')
@@ -122,23 +122,23 @@ local function raised_failure(err)
   return failure('write-failed', 'the index could not be written: ' .. tostring(err))
 end
 
--- Whether this root is still ours to write: mode 'eigen', read fresh every time (never from the
+-- Whether this root is still ours to write: mode 'own', read fresh every time (never from the
 -- cache of `index.locate`), and the index file the options name is the one this indexer holds.
 -- Returns nil, or the failure.
 local function mode_refusal(self)
   local mode, info = roots.mode(self.root, self.cfg)
   if mode == nil then
-    return failure('not-eigen', 'cannot tell whose index this is, so nothing is written: ' .. tostring(info))
+    return failure('not-own', 'cannot tell whose index this is, so nothing is written: ' .. tostring(info))
   end
-  if mode ~= 'eigen' then
+  if mode ~= 'own' then
     return failure(
-      'not-eigen',
+      'not-own',
       ('the index of this vault belongs to the Obsidian plugin (%s); this plugin only reads it and writes nothing there'):format(
         roots.index_path(self.root, mode, info)
       )
     )
   end
-  if roots.index_path(self.root, 'eigen', info) ~= self.path then
+  if roots.index_path(self.root, 'own', info) ~= self.path then
     return failure(
       'options-changed',
       'the options name another index folder than this session writes to; run :NoteRetrieval reset and try again'
@@ -362,7 +362,7 @@ end
 --- A later call may bring a new embedder or model: the embedder is taken over, a new model (or
 --- size) builds a new kit indexer that starts from the disk and carries nothing over from memory
 --- (the old vectors would sit there under the new model's name); live writes are refused until a
---- reindex when the index on disk has another model. While a reindex runs nothing is replaced. Returns `ix`, or `nil, message` (not mode 'eigen', no embedder).
+--- reindex when the index on disk has another model. While a reindex runs nothing is replaced. Returns `ix`, or `nil, message` (not mode 'own', no embedder).
 --- `ix.live` is the kit's indexer (`update`, `remove`, `rename`); write only through `ix:persist`.
 function M.for_root(root, opts)
   opts = opts or {}
@@ -393,7 +393,7 @@ function M.for_root(root, opts)
   end
   local cfg = opts.cfg or (config.resolve())
   local mode, info = roots.mode(key, cfg)
-  if mode ~= 'eigen' then
+  if mode ~= 'own' then
     return nil,
       mode == nil and tostring(info)
         or 'this vault uses the index of the Obsidian plugin; the plugin never writes it'
@@ -401,7 +401,7 @@ function M.for_root(root, opts)
   ix = setmetatable({
     root = key,
     cfg = cfg,
-    path = roots.index_path(key, 'eigen', info),
+    path = roots.index_path(key, 'own', info),
     files = state_files(key),
     inner = opts.storage or live_indexer.fs_storage(),
     embedder = embedder,
@@ -1060,7 +1060,7 @@ local function run_batches()
     else
       pending[root] = nil
       local mode = roots.mode(root, ix.cfg)
-      if mode == 'eigen' then
+      if mode == 'own' then
         save_batch(ix, sorted_keys(set))
       elseif mode ~= nil then
         detach(root)
@@ -1121,7 +1121,7 @@ local function on_write(ev)
   local fresh = config.resolve()
   -- Read fresh at write time: a vault that became the Obsidian plugin's is not ours any more.
   local mode, info = roots.mode(root, ix and ix.cfg or fresh)
-  if mode ~= 'eigen' then
+  if mode ~= 'own' then
     if mode ~= nil then
       detach(root)
     end
@@ -1150,7 +1150,7 @@ local function on_write(ev)
   get_debouncer().call()
 end
 
---- Starts listening for saved notes of `root` (a vault whose mode is 'eigen'; the callers check):
+--- Starts listening for saved notes of `root` (a vault whose mode is 'own'; the callers check):
 --- one `BufWritePost` autocmd for all roots, installed on the first call, idempotent. A saved note
 --- is written after `M.SAVE_DEBOUNCE_MS` of quiet: the notes of all saves in the window go in one
 --- sequence (`sync`, `update` of each, one `persist`). The mode is read again at every save; when

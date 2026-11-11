@@ -56,10 +56,9 @@ local function normalise(root)
 end
 
 -- Where the session's files for a root live: the lock and the backup, next to nothing the user
--- edits. The hash is the one `roots.index_path` puts in the folder name of the own index.
+-- edits. The folder name is `roots.hash`, the one the own index has under `stdpath('data')`.
 local function state_files(key)
-  local hash = vim.fs.basename(vim.fs.dirname(roots.index_path(key, 'eigen', nil)))
-  local dir = vim.fn.stdpath('state') .. '/note-retrieval/' .. hash
+  local dir = vim.fn.stdpath('state') .. '/note-retrieval/' .. roots.hash(key)
   return { dir = dir, lock = dir .. '/index.lock', backup = dir .. '/index.bin.bak' }
 end
 

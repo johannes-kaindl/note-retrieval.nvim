@@ -156,9 +156,17 @@ function M.mode(root, cfg)
   return 'eigen', own
 end
 
---- The index file: in mode `'eigen'` without `info.index_dir` under `stdpath('data')`, in a folder
---- named by the first 16 characters of the SHA-256 of the root's absolute path; otherwise
---- `<root>/<info.index_dir>/index.bin`. `info` is the second result of `mode`.
+--- The name of the folders a vault gets under `stdpath('data')` (its own index) and `stdpath('state')`
+--- (lock and backup): the first 16 characters of the SHA-256 of the root's absolute path, so a
+--- trailing slash or a relative spelling gives the same name.
+---@param root string
+---@return string
+function M.hash(root)
+  return vim.fn.sha256(absolute(root)):sub(1, 16)
+end
+
+--- The index file: in mode `'eigen'` without `info.index_dir` under `stdpath('data')`, in the folder
+--- `M.hash(root)`; otherwise `<root>/<info.index_dir>/index.bin`. `info` is the second result of `mode`.
 function M.index_path(root, mode, info)
   root = absolute(root)
   local dir = info and info.index_dir
@@ -166,8 +174,7 @@ function M.index_path(root, mode, info)
     return root .. '/' .. dir:gsub('/+$', '') .. '/index.bin'
   end
   assert(mode == 'eigen', 'note_retrieval.roots: an obsidian index needs info.index_dir')
-  local hash = vim.fn.sha256(root):sub(1, 16)
-  return vim.fn.stdpath('data') .. '/note-retrieval/' .. hash .. '/index.bin'
+  return vim.fn.stdpath('data') .. '/note-retrieval/' .. M.hash(root) .. '/index.bin'
 end
 
 --- The notes of the vault: the vault-relative `*.md` paths (`/`-separated, sorted by bytes), without

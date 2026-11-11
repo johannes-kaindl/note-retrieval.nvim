@@ -196,6 +196,22 @@ T.case(
   end
 )
 
+T.case(
+  'hash: 16 hex characters of the SHA-256 of the absolute root, the folder name of index_path',
+  function()
+    with_vault({}, function(root)
+      local hash = roots.hash(root)
+      T.ok(hash:find('^%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x$'), hash)
+      T.eq(hash, vim.fn.sha256(root):sub(1, 16))
+      T.eq(roots.hash(root .. '/'), hash) -- the spelling of the path does not matter
+      T.ok(roots.hash(root .. '/x') ~= hash)
+      T.eq(vim.fs.basename(vim.fs.dirname(roots.index_path(root, 'eigen'))), hash)
+    end)
+    -- a fixed vector, so that it is the SHA-256 of the path and not just something stable
+    T.eq(roots.hash('/x'), 'b3d1db318671a024')
+  end
+)
+
 T.case('index_path: with an index_dir the index lies inside the root, in either mode', function()
   with_vault({}, function(root)
     T.eq(roots.index_path(root, 'eigen', { index_dir = '_idx' }), root .. '/_idx/index.bin')

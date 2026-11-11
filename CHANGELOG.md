@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format is based on 
 ## [Unreleased]
 
 ### Fixed
+- `:NoteRetrieval update` no longer drops rows when the vault folder itself could only be read in part (the walk cannot say which entries are missing; before, only the notes beside the folders were kept) and refuses with the guard `shrink` when more than half of the rows would go because their notes are empty after the front matter (a mount that reads files as empty looks so), as it already did for rows of vanished files.
+- A write on an indexer that could not take over the index on disk (damaged file, other model) says so (`not-ready`, with `:NoteRetrieval reindex` as the way out) instead of "changed on disk".
 - `:NoteRetrieval stop` during an `update` (or the update after a save) says that the update is running and cannot be stopped, instead of "no reindex is running". It still does not stop it.
 
 ### Changed

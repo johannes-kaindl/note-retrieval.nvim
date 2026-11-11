@@ -452,7 +452,9 @@ function Ix:persist(reason)
   end
   self.lock = handle
   local ok, res, why = pcall(function()
-    if reason ~= 'reindex' and not same_stat(stat_of(self), self.seen) then
+    -- An indexer that could not take the disk over (damaged file, other model) says so below, not
+    -- "changed": reading again would not help, and there is no read to compare with.
+    if reason ~= 'reindex' and self.live:is_ready() and not same_stat(stat_of(self), self.seen) then
       return nil,
         failure(
           'changed',
@@ -661,19 +663,25 @@ local function stamps_of_notes(root, paths, cb)
   vim.schedule(step)
 end
 
--- Whether `path` lies in one of the folders `skipped` (vault-relative, as the walk lists them; '.' is
--- the vault folder itself, read only in part): a note there was not seen, which is not "gone".
+-- Whether `path` lies in one of the folders `skipped` (vault-relative, as the walk lists them): a
+-- note there was not seen, which is not "gone". '.' is the vault folder itself, read only in part:
+-- which of its entries are missing (a note beside the folders, or a whole folder with its notes) is
+-- not known, so no row can be called gone then.
 local function under_skipped(path, skipped)
   for _, dir in ipairs(skipped) do
-    if dir == '.' then
-      if not path:find('/', 1, true) then
-        return true
-      end
-    elseif path:sub(1, #dir + 1) == dir .. '/' then
+    if dir == '.' or path:sub(1, #dir + 1) == dir .. '/' then
       return true
     end
   end
   return false
+end
+
+local function shrink_refusal()
+  return failure(
+    'shrink',
+    'this update would drop more than half of the notes of the index although their files are still there,'
+      .. ' so nothing was written; :NoteRetrieval reindex rebuilds the index'
+  )
 end
 
 -- What the index holds against the vault: the paths to embed (not in the index, older than the
@@ -802,14 +810,7 @@ function Ix:sync_vault(cb)
       )
     end
     if drop_refused(delta.rows, delta.drop, root) then
-      return finish(
-        nil,
-        failure(
-          'shrink',
-          'this update would drop more than half of the notes of the index although their files are still there,'
-            .. ' so nothing was written; :NoteRetrieval reindex rebuilds the index'
-        )
-      )
+      return finish(nil, shrink_refusal())
     end
     run.total = #delta.embed
     for _, p in ipairs(delta.drop) do
@@ -817,11 +818,23 @@ function Ix:sync_vault(cb)
     end
     local removed = #delta.drop
     local function wrap_up(report)
+      -- Notes empty after the front matter lose their row, and their files are there: the same
+      -- check as for the rows of vanished files, because a mount that reads files as empty looks so.
+      local emptied = {}
       for _, p in ipairs(report.skipped_empty) do
         if delta.had[p] then
-          self.live:remove(p)
-          removed = removed + 1
+          emptied[#emptied + 1] = p
         end
+      end
+      if #emptied > 0 and guard.is_suspicious_shrink(delta.rows, delta.rows - #delta.drop - #emptied) then
+        -- Memory holds the dropped rows and the new vectors, unsaved: the disk is the truth again.
+        self.seen = nil
+        adopt(self)
+        return finish(nil, shrink_refusal())
+      end
+      for _, p in ipairs(emptied) do
+        self.live:remove(p)
+        removed = removed + 1
       end
       local result = {
         embedded = report.added,

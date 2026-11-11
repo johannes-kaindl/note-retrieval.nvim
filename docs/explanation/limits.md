@@ -18,8 +18,8 @@ What the plugin does not do in 0.1.0, written down so that it is not a surprise.
 - **Another Neovim wrote in between: the write is refused.** The plugin reads the file, embeds, and writes only if the file is unchanged since the read (`changed`). It does not merge. Way out: run `update` again.
 - **The lock is per write, not per full reindex.** Two Neovim instances reindexing the same vault do not block each other for the whole run; each write is atomic, and the guards refuse a write that would shrink the index.
 - **Notes that cannot be embedded thin the index.** A run writes when it stays above half of the rows; the failed notes are reported as a count and are missing from the index. `reindex` or `update` tries them again.
-- **The guard `shrink` blocks an `update` that would drop more than half of the rows while the files still exist** (a vault mount that is gone, for example). Way out: `:NoteRetrieval reset`, or `:NoteRetrieval reindex` to rebuild.
-- **Unreadable folders keep their rows.** If a folder cannot be read, its notes are not treated as deleted.
+- **The guard `shrink` blocks an `update` that would drop more than half of the rows while the files still exist** (a vault mount that is gone, or one that reads every note as empty, for example; notes that are empty after the front matter lose their row, and that counts too). Way out: `:NoteRetrieval reset`, or `:NoteRetrieval reindex` to rebuild.
+- **Unreadable folders keep their rows.** If a folder cannot be read, its notes (and those in the folders below it) are not treated as deleted. If the vault folder itself could only be read in part, no row is dropped at all, because it is not known which entries are missing; the message of the `update` says how many folders could not be read.
 
 ## Model
 

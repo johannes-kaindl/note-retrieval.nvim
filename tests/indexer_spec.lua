@@ -985,7 +985,13 @@ T.case('sync: the notes of a folder that cannot be read stay in the index, and t
     local ok, err = pcall(function()
       assert(vim.fn.system({ 'chmod', '000', root .. '/sub' }) == '', 'chmod failed')
       if uv.fs_scandir(root .. '/sub') then
-        return 'readable' -- running as root: the permission does not stop us; nothing to prove
+        -- running as root: the permission does not stop us. Say so, a silent pass proves nothing; the
+        -- cases below with a patched walk cover the same logic everywhere.
+        uv.fs_write(
+          2,
+          'SKIPPED (chmod does not stop a scan here): sync keeps the rows of an unreadable folder\n'
+        )
+        return 'readable'
       end
       write(root .. '/new.md', '# New\n\nfresh words')
       local result, e = sync_vault(ix)
@@ -1029,5 +1035,157 @@ T.case('sync: more than half of the rows dropped while their files are still the
     T.eq(ok_err, nil)
     T.eq(ok_result.removed, 6)
     T.eq(#decode(st.files[ix.path]).paths, 2)
+  end)
+end)
+
+-- Runs `fn` with the walk of the vault patched: `hide(path)` is true for the notes the walk does not
+-- see, `skipped` the folders it reports as not (fully) read. A failed read cannot be provoked on every
+-- system (chmod does nothing as root, a read that fails half way never), so these cases always run.
+local function with_walk(hide, skipped, fn)
+  local original = roots.note_paths
+  roots.note_paths = function(...)
+    local paths, sk = original(...)
+    if not paths then
+      return paths, sk
+    end
+    local seen = {}
+    for _, p in ipairs(paths) do
+      if not hide(p) then
+        seen[#seen + 1] = p
+      end
+    end
+    return seen, skipped
+  end
+  local ok, err = pcall(fn)
+  roots.note_paths = original
+  assert(ok, err)
+end
+
+local function paths_on_disk(st, ix)
+  return decode(st.files[ix.path]).paths
+end
+
+T.case('sync: a vault folder read only in part keeps every row, also those of folders below it', function()
+  with_indexed_sub(4, 6, function(root, _, ix, st)
+    -- the walk lists the notes of the root, then fails: the folder sub/ may have been after the failure
+    with_walk(function(p)
+      return p:find('^sub/') ~= nil
+    end, { '.' }, function()
+      local result, err = sync_vault(ix)
+      T.eq(err, nil)
+      T.eq({ result.removed, result.unreadable }, { 0, 1 })
+      T.eq(#paths_on_disk(st, ix), 10)
+    end)
+    -- counter-proof: with the walk whole again a note that is really gone is dropped
+    os.remove(root .. '/sub/s001.md')
+    local again = sync_vault(ix)
+    T.eq({ again.removed, again.unreadable }, { 1, 0 })
+    T.eq(#paths_on_disk(st, ix), 9)
+  end)
+end)
+
+T.case(
+  'sync: an unreadable folder protects its own notes and those below, not a folder with the same start',
+  function()
+    with_indexed_sub(2, 3, function(root, _, ix, st)
+      vim.fn.mkdir(root .. '/sub/deep', 'p')
+      vim.fn.mkdir(root .. '/sub2', 'p')
+      write(root .. '/sub/deep/d.md', '# Deep\n\nwords of a deep note')
+      write(root .. '/sub2/x.md', '# Other\n\nwords of a note in sub2')
+      T.eq(select(2, sync_vault(ix)), nil)
+      T.eq(#paths_on_disk(st, ix), 7)
+      -- sub/ cannot be read: its notes, also below it, stay. sub2/x.md is gone for real and goes.
+      os.remove(root .. '/sub2/x.md')
+      with_walk(function(p)
+        return p:find('^sub/') ~= nil
+      end, { 'sub' }, function()
+        local result, err = sync_vault(ix)
+        T.eq(err, nil)
+        T.eq({ result.removed, result.unreadable }, { 1, 1 })
+        T.eq(#paths_on_disk(st, ix), 6)
+        T.ok(vim.tbl_contains(paths_on_disk(st, ix), 'sub/deep/d.md'), 'the note below sub/ stays')
+      end)
+      -- only sub/deep is unreadable: a note gone from sub/ itself is dropped, the one below stays
+      os.remove(root .. '/sub/s001.md')
+      with_walk(function(p)
+        return p:find('^sub/deep/') ~= nil
+      end, { 'sub/deep' }, function()
+        local result, err = sync_vault(ix)
+        T.eq(err, nil)
+        T.eq({ result.removed, result.unreadable }, { 1, 1 })
+        T.ok(
+          vim.tbl_contains(paths_on_disk(st, ix), 'sub/deep/d.md'),
+          'the note of the unreadable folder stays'
+        )
+        T.ok(not vim.tbl_contains(paths_on_disk(st, ix), 'sub/s001.md'), 'the gone note beside it is dropped')
+      end)
+    end)
+  end
+)
+
+-- A note that is empty after its front matter.
+local function empty_note(path)
+  write(path, '---\ntitle: x\n---\n')
+end
+
+T.case('sync: more than half of the rows emptied at once is refused like vanished files', function()
+  with_vault(8, function(root, cfg)
+    local st = mem_storage()
+    local emb = embedder('sync')
+    local ix = new_ix(root, cfg, st, emb)
+    T.eq(select(2, reindex(ix)), nil)
+    local before, writes = st.files[ix.path], #st.writes
+    for i = 1, 6 do
+      empty_note(('%s/note-%03d.md'):format(root, i))
+    end
+    local result, err = sync_vault(ix)
+    T.eq(result, nil)
+    T.eq(err.kind, 'shrink')
+    T.eq(#st.writes, writes)
+    T.eq(st.files[ix.path], before)
+    T.eq(ix.live:note_count(), 8) -- memory is the disk again
+    -- counter-proof: four of them have text again, two stay empty - that many rows may go
+    for i = 1, 4 do
+      write(('%s/note-%03d.md'):format(root, i), ('# Note %d\n\nwritten again, longer than before'):format(i))
+    end
+    local ok_result, ok_err = sync_vault(ix)
+    T.eq(ok_err, nil)
+    T.eq({ ok_result.removed, ok_result.embedded }, { 2, 4 })
+    T.eq(#paths_on_disk(st, ix), 6)
+  end)
+end)
+
+T.case('start: damaged bytes on disk are not an empty index; nothing is written over them', function()
+  with_vault(3, function(root, cfg)
+    local st = mem_storage()
+    local first = new_ix(root, cfg, st, embedder('sync'))
+    T.eq(select(2, reindex(first)), nil)
+    local path = first.path
+    local good = st.files[path]
+    local function damaged_case(bytes, label)
+      indexer.reset()
+      st.files[path] = bytes
+      local writes = #st.writes
+      local ix = new_ix(root, cfg, st, embedder('sync'))
+      T.ok(
+        ix.not_ready ~= nil and ix.not_ready:find('damaged', 1, true),
+        label .. ': ' .. tostring(ix.not_ready)
+      )
+      local ok, err = ix:persist()
+      T.eq(ok, nil)
+      T.eq(err.kind, 'not-ready')
+      T.ok(err.message:find(':NoteRetrieval reindex', 1, true), err.message)
+      local result, serr = sync_vault(ix)
+      T.eq(result, nil)
+      T.eq(serr.kind, 'unreadable') -- the kit cannot tell damaged from being written: "try again"
+      T.eq(st.files[path], bytes)
+      T.eq(#st.writes, writes)
+      return ix
+    end
+    damaged_case('this is not a container', 'garbage')
+    local ix = damaged_case(good:sub(1, math.floor(#good / 2)), 'cut short')
+    -- the way out the message names: a reindex replaces the damaged file
+    T.eq(select(2, reindex(ix)), nil)
+    T.eq(#paths_on_disk(st, ix), 3)
   end)
 end)

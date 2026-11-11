@@ -28,4 +28,5 @@ Run `:NoteRetrieval update` (own index) to bring the vectors up to date.
 ## When the panel shows nothing
 
 - `no row for this note in the index`: the note is new, was left out, or the index is older than the note. In your own index, `:NoteRetrieval update` embeds it.
+- `:NoteRetrieval reindex builds it` on the second line, then the message of the index (file missing, being written or damaged): there is no usable index yet. In your own index, `:NoteRetrieval reindex` builds it; in a vault with the Obsidian index the line says `:checkhealth note_retrieval`, which shows which index is looked for.
 - No notes folder: set `roots`, see [troubleshoot](troubleshoot.md).

@@ -20,6 +20,11 @@ M.NAME = 'note-retrieval://related'
 M.WIDTH = 44
 M.DEBOUNCE_MS = 150
 
+-- The next step for a vault with no usable index, one short line (the panel does not wrap, so the
+-- message of the index with its long path would cut the step off).
+M.HINT_EIGEN = ':NoteRetrieval reindex builds it'
+M.HINT_OTHER = ':checkhealth note_retrieval'
+
 local GROUP = 'NoteRetrievalPanel'
 
 -- The panel that is open: its buffer, the vault it shows notes of and, per line, the note (path
@@ -66,6 +71,9 @@ function M.build(model)
   local lines, rows = { head }, {}
   if model.warning then
     lines[#lines + 1] = 'Warning: ' .. model.warning
+  end
+  if model.hint then
+    lines[#lines + 1] = model.hint
   end
   if model.message then
     lines[#lines + 1] = model.message
@@ -138,6 +146,7 @@ function M.update(buf)
   local loaded, warning = index.current(root)
   if not loaded then
     model.message = warning
+    model.hint = roots.mode(root, cfg) == 'eigen' and M.HINT_EIGEN or M.HINT_OTHER
   else
     local linked, hidden = {}, 0
     if cfg.hide_linked then

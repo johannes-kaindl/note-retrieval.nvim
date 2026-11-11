@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format is based on 
 - `:NoteRetrieval stop` during an `update` (or the update after a save) says that the update is running and cannot be stopped, instead of "no reindex is running". It still does not stop it.
 
 ### Changed
+- The panel of a vault with no usable index names the next step on its second line (`:NoteRetrieval reindex builds it` for the own index, `:checkhealth note_retrieval` otherwise); before it showed only the message of the index with its long path, and the panel does not wrap, so the step never came into view.
 - Internal: `roots.hash(root)` is the one place that names the per-vault folders (own index under `stdpath('data')`, lock and backup under `stdpath('state')`); the state folder no longer takes the name from the path of the index.
 - `:NoteRetrieval probe` tells a tie from a real miss, as `index-probe.ts` of vault-rag does: a note that stands behind the best hit with exactly its own score (notes with the same vector, the order between them is arbitrary) is shown as `tie`, counted apart (`7/8 on rank 0 (1 tie with the best hit, 0 real misses)`) and no longer makes the message a warning; the line of a real miss gives both scores. `--json` gains `ties`, `misses` and, per failure, `score`, `top_score` and `tie`. The probe after a reindex names ties too and warns only for real misses.
 - Vendors nvim-kit 0.17.0 (was 0.16.1): the kit's `endpoint_model.choose` reports a write error of the remembered model as `cb(id, err)` instead of raising. No visible change yet.

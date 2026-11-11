@@ -157,6 +157,10 @@ T.case('build: header with the count, rows with two decimals, title and folder',
     panel.build({ note = 'a.md', message = 'no matching notes' }),
     { 'Related to a.md: 0 notes', 'no matching notes' }
   )
+  T.eq(
+    panel.build({ note = 'a.md', hint = ':checkhealth note_retrieval', message = 'the index is gone' }),
+    { 'Related to a.md: 0 notes', ':checkhealth note_retrieval', 'the index is gone' }
+  )
 end)
 
 T.case('toggle opens a panel on the right with the related notes; the cursor stays in the note', function()
@@ -430,8 +434,8 @@ T.case('a note without a row, and a vault without an index, are said in words', 
     os.remove(root .. '/_vaultrag/index.bin')
     index.reset()
     panel.update(0)
-    T.eq(#panel_lines(), 2)
-    T.ok(panel_lines()[2]:find('index', 1, true), panel_lines()[2])
+    T.eq(#panel_lines(), 3) -- the head, the next step, the message of the index
+    T.ok(panel_lines()[3]:find('index', 1, true), panel_lines()[3])
   end)
 end)
 
@@ -497,6 +501,42 @@ T.case('<CR> and l leave a window that is no note window (explorer, help, quickf
     T.eq(vim.api.nvim_win_get_buf(other), tree)
     T.eq(real(vim.api.nvim_buf_get_name(0)), real(root .. '/sub/e.md'))
     T.ok(vim.api.nvim_get_current_win() ~= other and vim.api.nvim_get_current_win() ~= panel_win())
+  end)
+end)
+
+T.case('no index yet: the panel names the next step on its second line, short enough to be seen', function()
+  with_vault(nil, function(root)
+    os.remove(root .. '/_vaultrag/index.bin') -- the Obsidian plugin is installed but built nothing: our own index
+    open_panel(root, 'a.md')
+    local lines = panel_lines()
+    T.eq(#lines, 3)
+    T.eq(lines[1], 'Related to a.md: 0 notes')
+    T.eq(lines[2], ':NoteRetrieval reindex builds it')
+    T.ok(#lines[2] <= panel.WIDTH, 'the step is cut off in a panel that does not wrap')
+    T.ok(lines[3]:find('is missing', 1, true), lines[3]) -- the message of the index stays, below the step
+  end)
+end)
+
+T.case(
+  'an index that cannot be read in a vault of the Obsidian plugin: the step is the health check',
+  function()
+    with_vault(nil, function(root)
+      local bytes = container({ 'a.md' }, { { 127, 0, 0, 0 } })
+      put(root .. '/_vaultrag/index.bin', bytes:sub(1, 33))
+      open_panel(root, 'a.md')
+      local lines = panel_lines()
+      T.eq(lines[2], ':checkhealth note_retrieval')
+      T.ok(lines[3]:find('damaged', 1, true), lines[3])
+    end)
+  end
+)
+
+T.case('a usable index shows no step line', function()
+  with_vault(nil, function(root)
+    open_panel(root, 'a.md')
+    for _, line in ipairs(panel_lines()) do
+      T.ok(not line:find('reindex builds it', 1, true) and not line:find(':checkhealth', 1, true), line)
+    end
   end)
 end)
 

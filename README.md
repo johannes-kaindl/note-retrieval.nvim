@@ -14,7 +14,7 @@ Related to Baking/hydration.md: 2 notes
 
 `:NoteRetrieval search <words>` lists notes by meaning, not by the word, in the same form: the score, the title, the folder.
 
-**Status:** 0.1.0 is the first release. The plugin reads and, in its own mode, writes a note index; it never changes a note.
+**Status:** 0.1.1. The plugin reads and, in its own mode, writes a note index; it never changes a note.
 
 ## Requirements
 

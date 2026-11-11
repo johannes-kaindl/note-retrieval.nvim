@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-11
+
 ### Fixed
 - `:NoteRetrieval status` marks the last run as `(not written)` when it finished but its result was refused (a server that went away, a refused write), and no longer says that its failed notes are "missing from the index": the run changed nothing. `indexer.status` gains `refused`.
 - `:NoteRetrieval update` no longer drops rows when the vault folder itself could only be read in part (the walk cannot say which entries are missing; before, only the notes beside the folders were kept) and refuses with the guard `shrink` when more than half of the rows would go because their notes are empty after the front matter (a mount that reads files as empty looks so), as it already did for rows of vanished files.

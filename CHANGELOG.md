@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
 ### Added
 - A demo image in the README (`docs/images/demo.gif` and `demo.mp4`, 800 px, 20 fps): the own index is built (`status` shows mode `own`), the panel of related notes opens beside a note, a search by meaning finds a note. Reproducible with `make demo` (`docs/demo/demo.tape`, `docs/demo/init.lua`); it plays on a throw-away copy of the fixture vault with throw-away `XDG_*_HOME` folders and needs vhs, ffmpeg and an embedding server (Ollama with `qwen3-embedding:0.6b` by default, `NOTE_RETRIEVAL_DEMO_URL` and `NOTE_RETRIEVAL_DEMO_MODEL` override).
 

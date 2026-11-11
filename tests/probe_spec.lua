@@ -259,12 +259,17 @@ T.case(
         local result = run_probe(root, { n = 2 })
         T.eq(result.n, 2)
         T.eq(result.hits, 0)
-        T.eq(result.failures[1], { path = 'n08.md', rank = 1, top = 'n07.md' })
-        T.eq(result.failures[2], { path = 'n01.md', rank = nil, top = nil })
+        local f1 = result.failures[1]
+        T.eq({ f1.path, f1.rank, f1.top, f1.tie }, { 'n08.md', 1, 'n07.md', false })
+        T.ok(f1.score < f1.top_score, 'a displaced note scores below the best hit')
+        T.eq(result.failures[2], { path = 'n01.md', rank = nil, top = nil, tie = false })
+        T.eq({ result.ties, result.misses }, { 0, 2 })
         local text = table.concat(probe.lines(result), '\n')
         T.ok(text:find('0/2 on rank 0', 1, true), text)
         T.ok(text:find('n08.md: rank 1, best hit n07.md', 1, true), text)
         T.ok(text:find('n01.md: not found, best hit none', 1, true), text)
+        T.ok(text:find('0 ties with the best hit, 2 real misses', 1, true), text)
+        T.ok(not text:find('tie: ', 1, true), text)
       end)
     end)
   end
@@ -340,10 +345,143 @@ T.case('command: probe --json is one JSON line with n, hits, rate, failures, see
         T.ok(math.abs(j.rate - 1 / 3) < 1e-9, 'rate ' .. tostring(j.rate)) -- Neovim 0.10 rounds the float on encode
         T.eq(j.seed, 20260903)
         T.eq(j.model, V.MODEL)
-        T.eq(j.failures, {
-          { path = 'n08.md', rank = 1, top = 'n07.md' },
-          { path = 'n01.md', rank = vim.NIL, top = vim.NIL },
-        })
+        T.eq({ j.ties, j.misses }, { 0, 2 })
+        local f1, f2 = j.failures[1], j.failures[2]
+        T.eq({ f1.path, f1.rank, f1.top, f1.tie }, { 'n08.md', 1, 'n07.md', false })
+        T.ok(f1.score < f1.top_score, 'score and top_score are in the JSON')
+        local empty = { f2.rank, f2.top, f2.score, f2.top_score }
+        T.eq({ f2.path, f2.tie }, { 'n01.md', false })
+        T.eq(empty, { vim.NIL, vim.NIL, vim.NIL, vim.NIL })
+      end)
+    end)
+  end)
+end)
+
+-- Eight notes whose last two (n07, n08) hold the same vector: a query with the text of either one
+-- scores both alike, and which of the two comes first is arbitrary.
+local function with_twins(fn)
+  local rows = rows_of(8)
+  rows[8][2] = rows[7][2]
+  V.with_vault(function(root)
+    for i, r in ipairs(rows) do
+      V.put(root .. '/' .. r[1], body(i))
+    end
+    fn(root, rows)
+  end, { rows = rows })
+end
+
+T.case('run: a hit with the score of the note itself is a tie, not a miss (like index-probe.ts)', function()
+  with_twins(function(root, rows)
+    with_double(root, rows, nil, function()
+      local result = run_probe(root, { n = 8 })
+      T.eq(result.n, 8)
+      -- one twin comes first, the other second with the same score: rank 1, but no wrong answer
+      T.eq(result.hits, 7)
+      T.eq(#result.failures, 1)
+      local f = result.failures[1]
+      T.ok(f.path == 'n07.md' or f.path == 'n08.md', f.path)
+      T.eq(f.rank, 1)
+      T.eq(f.tie, true)
+      T.eq(f.score, f.top_score)
+      T.eq({ result.ties, result.misses }, { 1, 0 })
+      local text = table.concat(probe.lines(result), '\n')
+      T.ok(text:find('7/8 on rank 0 (1 tie with the best hit, 0 real misses)', 1, true), text)
+      T.ok(text:find('tie: same score', 1, true), text)
+      T.ok(text:find('order arbitrary', 1, true), text)
+    end)
+  end)
+end)
+
+T.case('run: a tie and a real miss in one run are told apart', function()
+  with_twins(function(root, rows)
+    -- n08 (first of the sample) is sent to the vector of n01: a wrong answer, no tie; the twin n07 still ties
+    with_double(root, rows, { ['n08.md'] = 'n01.md' }, function()
+      local result = run_probe(root, { n = 8 })
+      local by_path = {}
+      for _, f in ipairs(result.failures) do
+        by_path[f.path] = f
+      end
+      T.eq(by_path['n08.md'].tie, false)
+      T.ok(by_path['n08.md'].score < by_path['n08.md'].top_score, 'n08 scores below the best hit')
+      -- the twin n07 may come first or second for its own query; if it is second, that is a tie
+      if by_path['n07.md'] then
+        T.eq(by_path['n07.md'].tie, true)
+      end
+      T.eq(result.misses, 1)
+      T.ok(result.ties <= 1, 'at most the twin ties')
+      T.eq(result.ties + result.misses, #result.failures)
+      T.eq(result.hits + #result.failures, result.n)
+    end)
+  end)
+end)
+
+T.case('command: probe --json marks the tie and counts it apart from the real misses', function()
+  with_twins(function(root, rows)
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/n01.md'))
+    with_double(root, rows, nil, function()
+      capture(function(notes)
+        vim.cmd('NoteRetrieval probe --json 8')
+        T.ok(
+          vim.wait(10000, function()
+            return #notes >= 1
+          end, 2),
+          'no output'
+        )
+        local j = vim.json.decode(notes[1].msg)
+        T.eq({ j.n, j.hits, j.ties, j.misses }, { 8, 7, 1, 0 })
+        T.eq(#j.failures, 1)
+        T.eq(j.failures[1].tie, true)
+        T.eq(j.failures[1].score, j.failures[1].top_score)
+      end)
+    end)
+  end)
+end)
+
+T.case('command: probe with only ties is no warning', function()
+  with_twins(function(root, rows)
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/n01.md'))
+    with_double(root, rows, nil, function()
+      capture(function(notes)
+        vim.cmd('NoteRetrieval probe 8')
+        T.ok(
+          vim.wait(10000, function()
+            return #notes >= 2
+          end, 2),
+          vim.inspect(notes)
+        )
+        T.ok(notes[2].msg:find('7/8 on rank 0', 1, true), notes[2].msg)
+        T.eq(notes[2].level, vim.log.levels.INFO)
+      end)
+    end)
+  end)
+end)
+
+T.case('the automatic probe names ties apart and warns only for real misses', function()
+  with_twins(function(root, rows)
+    vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/n01.md'))
+    with_double(root, rows, nil, function()
+      capture(function(notes)
+        probe.auto(root)
+        T.ok(
+          vim.wait(10000, function()
+            return #notes >= 1
+          end, 2),
+          'no output'
+        )
+        T.ok(notes[1].msg:find('7/8 on rank 0, 1 tied with the best hit', 1, true), notes[1].msg)
+        T.eq(notes[1].level, vim.log.levels.INFO)
+      end)
+    end)
+    with_double(root, rows, { ['n08.md'] = 'n01.md' }, function()
+      capture(function(notes)
+        probe.auto(root)
+        T.ok(
+          vim.wait(10000, function()
+            return #notes >= 1
+          end, 2),
+          'no output'
+        )
+        T.eq(notes[1].level, vim.log.levels.WARN)
       end)
     end)
   end)

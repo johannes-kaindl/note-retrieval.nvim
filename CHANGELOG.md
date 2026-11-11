@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format is based on 
 - `:NoteRetrieval stop` during an `update` (or the update after a save) says that the update is running and cannot be stopped, instead of "no reindex is running". It still does not stop it.
 
 ### Changed
+- `:NoteRetrieval probe` tells a tie from a real miss, as `index-probe.ts` of vault-rag does: a note that stands behind the best hit with exactly its own score (notes with the same vector, the order between them is arbitrary) is shown as `tie`, counted apart (`7/8 on rank 0 (1 tie with the best hit, 0 real misses)`) and no longer makes the message a warning; the line of a real miss gives both scores. `--json` gains `ties`, `misses` and, per failure, `score`, `top_score` and `tie`. The probe after a reindex names ties too and warns only for real misses.
 - Vendors nvim-kit 0.16.1 (was 0.15.0); `state.lua` is the kit's `endpoint_model` over this plugin's state file (same file, same behaviour: a broken file reads as nothing and is set aside).
 - `make live` prints the number of notes that failed to embed in its result line.
 - The stall of the first `update` step is documented as measured in one step: about 45 ms with an unchanged index, 60 to 70 ms when the index is read again (11,000 notes); earlier text said about 90 ms, a sum of single measurements.

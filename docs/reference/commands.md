@@ -16,7 +16,9 @@ One user command, `:NoteRetrieval {subcommand}`, with completion. The manual (`:
 
 ## `probe`
 
-The rule for a note to be probed: the body (frontmatter removed, trimmed) has more than 200 and at most 800 UTF-16 code units (JavaScript string length; a character outside the Basic Multilingual Plane counts 2). The query is the first 300 units of the body. A note is found when it comes back at rank 0. Output: `probe: x/n on rank 0` and one line per miss with the path and the rank found (or "not found").
+The rule for a note to be probed: the body (frontmatter removed, trimmed) has more than 200 and at most 800 UTF-16 code units (JavaScript string length; a character outside the Basic Multilingual Plane counts 2). The query is the first 300 units of the body. A note is found when it comes back at rank 0. Output: `probe: x/n on rank 0` and, when there are other notes, the count of ties and of real misses, then one line per note that did not come back first, with the path, the rank found (or "not found") and the best hit.
+
+A **tie** is a note that stands behind the best hit with the same score (the scores differ by less than 1e-9): two notes with the same vector, so the order between them is arbitrary and the answer is not wrong. The line says `tie: same score …`, the tie is counted apart from the **real misses** (a lower score, or not among the hits), and only real misses make the message a warning. This is how `index-probe.ts` of vault-rag counts ("Gleichstand" against "echte Rückstände"); `x/n on rank 0` still counts the notes at rank 0 only, so a run with ties varies in that number between runs, the number of real misses does not.
 
 With `--json`, one JSON line with the keys:
 
@@ -24,8 +26,10 @@ With `--json`, one JSON line with the keys:
 |---|---|
 | `n` | Notes probed. |
 | `hits` | Notes found at rank 0. |
+| `ties` | Notes not at rank 0 whose score equals the best hit's (see above). |
+| `misses` | The real misses: `n - hits - ties`. |
 | `rate` | `hits / n`. |
-| `failures` | List of `{ path, rank, top }`: the note, the rank it came back at (null when it was not found), and the path of the best hit (null when there was none). |
+| `failures` | List of `{ path, rank, top, score, top_score, tie }` for every note not at rank 0: the note, the rank it came back at (null when it was not found), the path of the best hit (null when there was none), the score of the note and of the best hit (null when there is none) and `tie`, true when the two scores are the same. |
 | `seed` | The seed of the sample. |
 | `model` | The model of the index. |
 

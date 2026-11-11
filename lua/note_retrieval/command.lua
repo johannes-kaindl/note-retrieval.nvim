@@ -435,8 +435,9 @@ function M.model()
 end
 
 --- :NoteRetrieval probe [n] [--json] — search with the own text of up to `n` (default 40) notes of
---- the index and count how many find themselves at rank 0; the misses are listed. `--json` prints
---- one JSON line instead. Reads only, so it works on the index of the Obsidian plugin too.
+--- the index and count how many find themselves at rank 0; the others are listed, a note that stands
+--- behind a hit with its own score as a tie (no wrong answer), the rest as real misses (only those make
+--- the message a warning). `--json` prints one JSON line instead. Reads only, so it works on the index of the Obsidian plugin too.
 ---@param opts? { n?: integer, json?: boolean }
 function M.probe(opts)
   opts = opts or {}
@@ -470,7 +471,7 @@ function M.probe(opts)
     end
     vim.notify(
       table.concat(probe.lines(result), '\n'),
-      (#result.failures > 0 or result.n == 0) and vim.log.levels.WARN or vim.log.levels.INFO
+      (result.misses > 0 or result.n == 0) and vim.log.levels.WARN or vim.log.levels.INFO
     )
   end)
 end

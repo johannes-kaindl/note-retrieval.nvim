@@ -99,21 +99,34 @@ function M.select(root, paths, n, seed)
   return out
 end
 
--- The rank of `path` among the hits (0 = first), nil when it is not among them.
+-- The rank of `path` among the hits (0 = first) and its hit, nil when it is not among them.
 local function rank_of(results, path)
   for i, hit in ipairs(results) do
     if hit.path == path then
-      return i - 1
+      return i - 1, hit
     end
   end
+end
+
+-- Scores closer than this are the same score (the bound of vault-rag's index-probe.ts).
+local TIE_EPSILON = 1e-9
+
+-- A tie: the note stands behind the best hit with the same score, so the order between them is
+-- arbitrary (notes with the same vector) and no wrong answer. Without both scores there is none.
+local function is_tie(score, top_score)
+  return score ~= nil and top_score ~= nil and math.abs(score - top_score) < TIE_EPSILON
 end
 
 --- Runs the probe on the index of `root`: up to `opts.n` (default `M.N`) candidates of the loaded
 --- index, each searched with its own text, one after another (the next query goes out when the
 --- answer to the last is in, never two at a time; the main loop is handed back between queries).
---- `opts = { n, seed }`. Calls `cb(result)` with `{ n, hits, rate, failures = { { path, rank, top } },
---- seed, model }` (`n` the notes probed, which can be fewer than asked; `rank` nil when the note is
---- not among the hits; `top` the best hit's path), or `cb(nil, err, partial)` with `err` the error
+--- `opts = { n, seed }`. Calls `cb(result)` with `{ n, hits, ties, misses, rate, failures = { { path,
+--- rank, top, score, top_score, tie } }, seed, model }` (`n` the notes probed, which can be fewer than
+--- asked; `hits` those at rank 0; `rank` nil when the note is not among the hits; `top` the best hit's
+--- path; `score` the note's own score, nil when it is not among the hits, `top_score` the best hit's;
+--- `tie` true when `score` equals `top_score`: the note stands behind a twin with the same score, the
+--- order is arbitrary and it is no wrong answer, as in vault-rag's index-probe.ts; `ties` counts those,
+--- `misses` the other failures), or `cb(nil, err, partial)` with `err` the error
 --- value of the search (`{ kind, detail }`) and `partial` what was counted so far. It reads only.
 ---@param root string
 ---@param opts? { n?: integer, seed?: integer }
@@ -130,6 +143,8 @@ function M.run(root, opts, cb)
   local result = {
     n = 0,
     hits = 0,
+    ties = 0,
+    misses = 0,
     rate = 0,
     failures = {},
     seed = seed,
@@ -154,16 +169,27 @@ function M.run(root, opts, cb)
       if not results then
         return cb(nil, err, result)
       end
-      local rank = rank_of(results, cand.path)
+      local rank, own = rank_of(results, cand.path)
       result.n = result.n + 1
       if rank == 0 then
         result.hits = result.hits + 1
       else
+        local score = own and own.score or nil
+        local top_score = results[1] and results[1].score or nil
+        local tie = is_tie(score, top_score)
         result.failures[#result.failures + 1] = {
           path = cand.path,
           rank = rank,
           top = results[1] and results[1].path or nil,
+          score = score,
+          top_score = top_score,
+          tie = tie,
         }
+        if tie then
+          result.ties = result.ties + 1
+        else
+          result.misses = result.misses + 1
+        end
       end
       vim.schedule(step)
     end)
@@ -171,18 +197,34 @@ function M.run(root, opts, cb)
   step()
 end
 
---- The result as one JSON line (`rank` and `top` are null when there is none).
+-- A value for JSON: nil becomes null.
+local function nullable(v)
+  if v == nil then
+    return vim.NIL
+  end
+  return v
+end
+
+--- The result as one JSON line (`rank`, `top`, `score` and `top_score` are null when there is none).
 ---@param result table
 ---@return string
 function M.json(result)
   local failures = {}
   for i, f in ipairs(result.failures) do
-    failures[i] =
-      { path = f.path, rank = f.rank == nil and vim.NIL or f.rank, top = f.top == nil and vim.NIL or f.top }
+    failures[i] = {
+      path = f.path,
+      rank = nullable(f.rank),
+      top = nullable(f.top),
+      score = nullable(f.score),
+      top_score = nullable(f.top_score),
+      tie = f.tie,
+    }
   end
   return vim.json.encode({
     n = result.n,
     hits = result.hits,
+    ties = result.ties,
+    misses = result.misses,
     rate = result.rate,
     failures = failures,
     seed = result.seed,
@@ -190,8 +232,9 @@ function M.json(result)
   })
 end
 
---- The lines to show: `x/n on rank 0` and one line per failure (path, rank found or "not found",
---- best hit). Without a candidate it says so and names the window.
+--- The lines to show: `x/n on rank 0`, with the ties and the real misses counted apart when there is a
+--- failure, and one line per failure (path, rank found or "not found", best hit; a tie says so, a real
+--- miss gives both scores). Without a candidate it says so and names the window.
 ---@param result table
 ---@return string[]
 function M.lines(result)
@@ -200,13 +243,29 @@ function M.lines(result)
       'note-retrieval: probe: no note in the index has a text between 201 and 800 characters to search with',
     }
   end
-  local lines = { ('note-retrieval: probe: %d/%d on rank 0'):format(result.hits, result.n) }
+  local head = ('note-retrieval: probe: %d/%d on rank 0'):format(result.hits, result.n)
+  if #result.failures > 0 then
+    head = head
+      .. (' (%d %s with the best hit, %d real %s)'):format(
+        result.ties,
+        result.ties == 1 and 'tie' or 'ties',
+        result.misses,
+        result.misses == 1 and 'miss' or 'misses'
+      )
+  end
+  local lines = { head }
   for _, f in ipairs(result.failures) do
-    lines[#lines + 1] = ('  %s: %s, best hit %s'):format(
+    local line = ('  %s: %s, best hit %s'):format(
       f.path,
       f.rank and ('rank ' .. f.rank) or 'not found',
       f.top or 'none'
     )
+    if f.tie then
+      line = line .. (' — tie: same score %.6f, order arbitrary'):format(f.score)
+    elseif f.score and f.top_score then
+      line = line .. (' — score %.6f, best hit %.6f'):format(f.score, f.top_score)
+    end
+    lines[#lines + 1] = line
   end
   return lines
 end
@@ -234,14 +293,15 @@ function M.auto(root)
       if result.n == 0 then
         return
       end
-      local missed = #result.failures
+      local listed = #result.failures
       vim.notify(
-        ('note-retrieval: probe after the reindex: %d/%d on rank 0%s'):format(
+        ('note-retrieval: probe after the reindex: %d/%d on rank 0%s%s'):format(
           result.hits,
           result.n,
-          missed > 0 and ' (:NoteRetrieval probe lists the misses)' or ''
+          result.ties > 0 and (', %d tied with the best hit'):format(result.ties) or '',
+          listed > 0 and ' (:NoteRetrieval probe lists them)' or ''
         ),
-        missed > 0 and vim.log.levels.WARN or vim.log.levels.INFO
+        result.misses > 0 and vim.log.levels.WARN or vim.log.levels.INFO
       )
     end)
   end)

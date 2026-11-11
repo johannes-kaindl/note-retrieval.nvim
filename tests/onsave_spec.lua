@@ -229,6 +229,22 @@ T.case("on save: a vault that became the Obsidian plugin's is dropped at the nex
   end)
 end)
 
+T.case('on save: the mode is read at the save itself, not only when the batch runs', function()
+  with_vault(2, function(root, cfg)
+    local ix, st, emb = ready(root, cfg)
+    T.eq(group_autocmds(), 1)
+    local base, calls = writes_to(st, ix.path), emb.calls
+    make_obsidian(root)
+    save(root .. '/note-001.md', '# Note 1\n\nthe mode changed under the session')
+    -- no waiting: the handler of the save drops the root at once; the check that the batch makes
+    -- after the window would only do it later (the case above waits for both)
+    T.eq(group_autocmds(), 0)
+    settle(WINDOW * 4)
+    T.eq(emb.calls, calls)
+    T.eq(writes_to(st, ix.path), base)
+  end)
+end)
+
 T.case('on save: index_on_save = false updates nothing', function()
   with_vault(2, function(root, cfg)
     local ix, st, emb = ready(root, cfg)

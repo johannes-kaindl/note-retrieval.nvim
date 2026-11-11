@@ -546,6 +546,11 @@ T.case('stop during a run: the run ends early, what it reached is written, the r
       T.ok(text:find('the rest of the index is as it was', 1, true), text)
       T.ok(indexer.status(root).done < 203, 'the run was not cut short')
       T.eq(indexer.status(root).running, false)
+      -- what it reached is on disk (the notes of the report and no more), not only in memory
+      local added = indexer.status(root).report.added
+      T.ok(added > 0 and added < 203, 'the report holds the notes reached: ' .. added)
+      local d = assert(vrix.decode(sha_of(root .. '/_idx/index.bin')))
+      T.eq(#d.paths, added)
     end)
   end)
 end)
